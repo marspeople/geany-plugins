@@ -100,6 +100,9 @@ geanydoc/tests/unittests.c
 geanydoc/src/config.c
 geanydoc/src/geanydoc.c
 
+# geanydiff 
+geanydiff/src/geanydiff.c 
+
 # GeanyExtraSel
 geanyextrasel/src/extrasel.c
 
