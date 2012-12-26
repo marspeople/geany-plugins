@@ -1,13 +1,22 @@
 #include <geanyplugin.h>
 
+#ifdef HAVE_CONFIG_H
+	#include "config.h"
+#endif
+
 GeanyPlugin     *geany_plugin;
 GeanyData       *geany_data;
 GeanyFunctions  *geany_functions;
 
 PLUGIN_VERSION_CHECK(211)
 
-PLUGIN_SET_INFO("Diff", "Invoke a diff tool between two files",
-				"1.0", "Marcelo Póvoa <marspeoplester@gmail.com>");
+PLUGIN_SET_TRANSLATABLE_INFO(
+	LOCALEDIR,
+	GETTEXT_PACKAGE,
+	_("Diff"), 
+	_("Invoke a diff tool between two files"),
+	"1.0",
+	"Marcelo Póvoa <marspeoplester@gmail.com>")
 
 static GtkToolItem *tool_item       = NULL;
 static GtkWidget *menu_item         = NULL;
