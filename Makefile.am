@@ -22,6 +22,10 @@ if ENABLE_DEVHELP
 SUBDIRS += devhelp
 endif
 
+if ENABLE_GEANYDIFF
+SUBDIRS += geanydiff
+endif
+
 if ENABLE_GEANYDOC
 SUBDIRS += geanydoc
 endif
