@@ -39,6 +39,10 @@ if ENABLE_GEANYCTAGS
 SUBDIRS += geanyctags
 endif
 
+if ENABLE_GEANYDIFF
+SUBDIRS += geanydiff
+endif
+
 if ENABLE_GEANYDOC
 SUBDIRS += geanydoc
 endif
