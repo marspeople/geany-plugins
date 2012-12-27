@@ -13,7 +13,7 @@ PLUGIN_VERSION_CHECK(211)
 PLUGIN_SET_TRANSLATABLE_INFO(
 	LOCALEDIR,
 	GETTEXT_PACKAGE,
-	_("Diff"), 
+	_("Diff"),
 	_("Invoke a diff tool between two files"),
 	"1.0",
 	"Marcelo Póvoa <marspeoplester@gmail.com>")
@@ -69,7 +69,8 @@ static void get_current_cmd(diff_cmd *dest)
 		dest->cmd  = config_custom_cmd;
 		dest->sync = config_stdout_en;
 	}
-	else *dest = stock_commands[config_cmd_index];
+	else
+		*dest = stock_commands[config_cmd_index];
 }
 
 static gchar *export_doc_to_tmpfile(GeanyDocument *doc, GError **error)
@@ -97,7 +98,7 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 	gchar *std_out;
 	gchar *file_tgt;
 	gboolean itself;
-	
+
 	if (doc->is_valid) {
 		cur_doc = document_get_current();
 		get_current_cmd(&cur_cmd);
@@ -114,7 +115,8 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 				return;
 			}
 		}
-		else file_tgt = doc->file_name;
+		else
+			file_tgt = doc->file_name;
 
 		command = g_string_new(cur_cmd.cmd);
 
@@ -138,10 +140,9 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 			g_free(std_out);
 		}
 
-		if (itself) {
-			g_remove(file_tgt);
+		if (itself)
 			g_free(file_tgt);
-		}
+
 		g_string_free(command, TRUE);
 	}
 }
@@ -155,14 +156,14 @@ static void on_doc_menu_show(GtkMenu *menu)
 		G_CALLBACK(on_doc_menu_item_clicked));
 }
 
-static void config_load()
+static void config_load(void)
 {
 	GKeyFile *config = g_key_file_new();
 
 	config_file = g_strconcat(geany->app->configdir, G_DIR_SEPARATOR_S, "plugins", G_DIR_SEPARATOR_S,
 		"geanydiff", G_DIR_SEPARATOR_S, "geanydiff.conf", NULL);
 	g_key_file_load_from_file(config, config_file, G_KEY_FILE_NONE, NULL);
-	
+
 	config_custom_cmd = utils_get_setting_string(config, "geanydiff", "custom_cmd", "");
 	config_cmd_index  = utils_get_setting_integer(config, "geanydiff", "cmd_index", 0);
 	config_stdout_en  = utils_get_setting_boolean(config, "geanydiff", "stdout_en", FALSE);
@@ -170,7 +171,7 @@ static void config_load()
 	g_key_file_free(config);
 }
 
-static void config_save()
+static void config_save(void)
 {
 	GKeyFile *config = g_key_file_new();
 	gchar *data;
@@ -196,7 +197,7 @@ static void config_save()
 	g_key_file_free(config);
 }
 
-static void on_click_tool_button()
+static void on_click_tool_button(void)
 {
 	plugin_show_configure(geany_plugin);
 }
@@ -226,7 +227,7 @@ static void on_configure_response(GtkDialog *dialog, gint response, gpointer use
 	}
 }
 
-static void on_changed_command()
+static void on_changed_command(void)
 {
 	gboolean custom = (gtk_combo_box_get_active((GtkComboBox*) pref_cmd_combo) == cmd_count);
 
@@ -254,7 +255,7 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 
 	/* Add extra entry for custom command */
 	gtk_combo_box_append_text((GtkComboBox*) gtkw, _("Custom..."));
-	
+
 	gtk_combo_box_set_active((GtkComboBox*) gtkw, config_cmd_index);
 	gtk_box_pack_start(GTK_BOX(vbox), gtkw, FALSE, FALSE, 2);
 	g_object_set_data(G_OBJECT(dialog), "geanydiff_commands", gtkw);
@@ -271,6 +272,7 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 	gtkw = gtk_entry_new();
 	if (config_custom_cmd != NULL)
 		gtk_entry_set_text(GTK_ENTRY(gtkw), config_custom_cmd);
+	
 	gtk_widget_set_tooltip_text(gtkw,
 		_("If non-empty, the custom diff command line to execute.\n"
 		  "%fc will be replaced with the full path of current document\n"
@@ -309,7 +311,7 @@ void plugin_cleanup(void)
 	config_save();
 	g_free(config_file);
 	g_free(config_custom_cmd);
-	
+
 	if (tool_item != NULL) {
 		gtk_widget_destroy(GTK_WIDGET(tool_item));
 		tool_item = NULL;
