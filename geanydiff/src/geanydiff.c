@@ -301,9 +301,8 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 
 	gtkw = gtk_label_new(
 		_("\nNote:\n"
-		  "\tDiff is always performed with last saved version of documents,\n"
-		  "\texcept when targeting the same document as current one,\n"
-		  "\twhich will compare to unsaved content."));
+		  "\tDiff will export current file to a temporary if unsaved,\n"
+		  "\twhile target (selected) file is always used as saved.\n"));
 	gtk_misc_set_alignment(GTK_MISC(gtkw), 0, 0.5);
 	gtk_box_pack_start(GTK_BOX(vbox), gtkw, FALSE, FALSE, 0);
 
