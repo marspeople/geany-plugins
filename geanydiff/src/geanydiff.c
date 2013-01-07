@@ -85,15 +85,16 @@ static gchar *export_doc_to_tmpfile(GeanyDocument *doc, GError **error)
 {
 	ScintillaObject *sci = doc->editor->sci;
 	gchar *doc_text = sci_get_contents(sci, -1);
-	gchar *filename;
+	gchar *filename, *basename;
 
-	if (g_file_open_tmp(NULL, &filename, error) == -1)
-		return NULL;
+	basename = g_path_get_basename(doc->file_name);
+	filename = g_build_filename(g_get_tmp_dir(), basename, NULL);
 
 	if (!g_file_set_contents(filename, doc_text, -1, error))
 		return NULL;
 
 	g_free(doc_text);
+	g_free(basename);
 
 	return filename;
 }
