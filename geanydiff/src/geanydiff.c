@@ -15,7 +15,7 @@ PLUGIN_SET_TRANSLATABLE_INFO(
 	GETTEXT_PACKAGE,
 	_("Diff"),
 	_("Invoke a diff tool between two files"),
-	"1.0",
+	"1.1",
 	"Marcelo Póvoa <marspeoplester@gmail.com>")
 
 static GtkToolItem *tool_item       = NULL;
@@ -38,26 +38,34 @@ typedef struct diff_cmd {
 	gboolean sync; /* Whether to run command synchronously */
 } diff_cmd;
 
-static const diff_cmd stock_commands[] = {
+static diff_cmd stock_commands[] = {
 	{
-		"diff -u \"%fc\" \"%ft\"",
+		"diff -u \"%ft\" \"%fc\"",
 		"diff",
 		TRUE },
 	{
-		"diff \"%fc\" \"%ft\"",
+		"diff \"%ft\" \"%fc\"",
 		"diff (plain)",
 		TRUE },
 	{
-		"meld \"%fc\" \"%ft\"",
-		"Meld",
+		"opendiff \"%ft\" \"%fc\"",
+		"FileMerge",
 		FALSE },
 	{
-		"kompare \"%fc\" \"%ft\"",
+		"kdiff3 \"%ft\" \"%fc\"",
+		"KDiff3",
+		FALSE },
+	{
+		"kompare \"%ft\" \"%fc\"",
 		"Kompare",
 		FALSE },
 	{
-		"opendiff \"%fc\" \"%ft\"",
-		"FileMerge",
+		"meld \"%ft\" \"%fc\"",
+		"Meld",
+		FALSE },
+	{
+		"tkdiff \"%ft\" \"%fc\"",
+		"TkDiff",
 		FALSE }
 };
 
@@ -85,6 +93,8 @@ static gchar *export_doc_to_tmpfile(GeanyDocument *doc, GError **error)
 	if (!g_file_set_contents(filename, doc_text, -1, error))
 		return NULL;
 
+	g_free(doc_text);
+
 	return filename;
 }
 
@@ -96,19 +106,16 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 	GError *error = NULL;
 	GString *command;
 	gchar *std_out;
-	gchar *file_tgt;
-	gboolean itself;
+	gchar *file_cur;
 
 	if (doc->is_valid) {
 		cur_doc = document_get_current();
 		get_current_cmd(&cur_cmd);
 
-		itself = !g_strcmp0(cur_doc->file_name, doc->file_name);
-
-		/* When comparing to itself, get unsaved version of doc in a tmp file */
-		if (itself) {
-			file_tgt = export_doc_to_tmpfile(doc, &error);
-			if (!file_tgt) {
+		/* If document is changed, get unsaved version of doc in a tmp file */
+		if (cur_doc->changed) {
+			file_cur = export_doc_to_tmpfile(cur_doc, &error);
+			if (!file_cur) {
 				g_warning("geanydiff: error: %s", error->message);
 				ui_set_statusbar(FALSE, _("geanydiff: error: %s"), error->message);
 				g_error_free(error);
@@ -116,12 +123,12 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 			}
 		}
 		else
-			file_tgt = doc->file_name;
+			file_cur = cur_doc->file_name;
 
 		command = g_string_new(cur_cmd.cmd);
 
-		utils_string_replace_all(command, "%fc", cur_doc->file_name);
-		utils_string_replace_all(command, "%ft", file_tgt);
+		utils_string_replace_all(command, "%ft", doc->file_name);
+		utils_string_replace_all(command, "%fc", file_cur);
 
 		if (cur_cmd.sync)
 			g_spawn_command_line_sync(command->str, &std_out, NULL, NULL, &error);
@@ -140,8 +147,8 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 			g_free(std_out);
 		}
 
-		if (itself)
-			g_free(file_tgt);
+		if (cur_doc->changed)
+			g_free(file_cur);
 
 		g_string_free(command, TRUE);
 	}
