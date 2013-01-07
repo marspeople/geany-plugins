@@ -33,12 +33,12 @@ static gboolean config_stdout_en;
 static gchar *config_file;
 
 typedef struct diff_cmd {
-	gchar *cmd;    /* Command line with replaceable wildcards */
-	gchar *label;  /* Label to show in settings panel */
-	gboolean sync; /* Whether to run command synchronously */
+	const gchar * cmd;    /* Command line with replaceable wildcards */
+	const gchar * label;  /* Label to show in settings panel */
+	gboolean sync;        /* Whether to run command synchronously */
 } diff_cmd;
 
-static diff_cmd stock_commands[] = {
+static const diff_cmd stock_commands[] = {
 	{
 		"diff -u \"%ft\" \"%fc\"",
 		"diff",
@@ -73,6 +73,7 @@ static const gint cmd_count = sizeof(stock_commands)/sizeof(diff_cmd);
 
 static void get_current_cmd(diff_cmd *dest)
 {
+	/* Last index is the custom command by definition */
 	if (config_cmd_index == cmd_count) {
 		dest->cmd  = config_custom_cmd;
 		dest->sync = config_stdout_en;
@@ -83,6 +84,7 @@ static void get_current_cmd(diff_cmd *dest)
 
 static gchar *export_doc_to_tmpfile(GeanyDocument *doc, GError **error)
 {
+	/* FIXME: File encoding doesn't seem to be correctly preserved */
 	ScintillaObject *sci = doc->editor->sci;
 	gchar *doc_text = sci_get_contents(sci, -1);
 	gchar *filename, *basename;
@@ -328,4 +330,3 @@ void plugin_cleanup(void)
 		menu_item = NULL;
 	}
 }
-
