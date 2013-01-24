@@ -304,7 +304,7 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 	gtkw = gtk_label_new(
 		_("\nNote:\n"
 		  "\tDiff will export current file to a temporary if unsaved,\n"
-		  "\twhile target (selected) file is always used as saved.\n"));
+		  "\twhile chosen file (target) is always used as saved.\n"));
 	gtk_misc_set_alignment(GTK_MISC(gtkw), 0, 0.5);
 	gtk_box_pack_start(GTK_BOX(vbox), gtkw, FALSE, FALSE, 0);
 
@@ -321,12 +321,12 @@ void plugin_cleanup(void)
 	g_free(config_file);
 	g_free(config_custom_cmd);
 
-	if (tool_item != NULL) {
-		gtk_widget_destroy(GTK_WIDGET(tool_item));
-		tool_item = NULL;
-	}
 	if (menu_item != NULL) {
 		gtk_widget_destroy(menu_item);
 		menu_item = NULL;
+	}
+	if (tool_item != NULL) {
+		gtk_widget_destroy(GTK_WIDGET(tool_item));
+		tool_item = NULL;
 	}
 }
