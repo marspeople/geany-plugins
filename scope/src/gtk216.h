@@ -26,6 +26,7 @@ void gtk_widget_set_visible(GtkWidget *widget, gboolean visible);
 #endif
 
 void gtk216_init(void);
+void gtk216_finalize(void);
 
 #define GTK216_H 1
 #endif

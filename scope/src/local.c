@@ -31,31 +31,14 @@ enum
 	LOCAL_ARG1
 };
 
-static GtkListStore *store;
-static GtkTreeModel *model;
+static ScpTreeStore *store;
 static GtkTreeSelection *selection;
 
 static void on_local_display_edited(G_GNUC_UNUSED GtkCellRendererText *renderer,
 	gchar *path_str, gchar *new_text, G_GNUC_UNUSED gpointer gdata)
 {
-	if (validate_column(new_text, TRUE))
-	{
-		if (thread_state >= THREAD_STOPPED && frame_id)
-		{
-			GtkTreeIter iter;
-			const char *arg1;
-			char *format;
-
-			gtk_tree_model_get_iter_from_string(model, &iter, path_str);
-			gtk_tree_model_get(model, &iter, LOCAL_ARG1, &arg1, -1);
-			format = g_strdup_printf("08%s%s", arg1 ? thread_id : "",
-				"-gdb-set var %s=%s");
-			view_display_edited(model, &iter, new_text, format);
-			g_free(format);
-		}
-		else
-			plugin_beep();
-	}
+	view_display_edited(store, thread_state >= THREAD_STOPPED && frame_id, path_str,
+		"07-gdb-set var %s=%s", new_text);
 }
 
 static const TreeCell local_cells[] =
@@ -84,10 +67,10 @@ static void local_node_variable(const ParseNode *node, const LocalData *ld)
 
 			if (!arg1 || ld->entry || !g_str_has_suffix(var.name, "@entry"))
 			{
-				gtk_list_store_append(store, &iter);
-				gtk_list_store_set(store, &iter, LOCAL_NAME, var.name, LOCAL_DISPLAY,
-					var.display, LOCAL_VALUE, var.value, LOCAL_HB_MODE, var.hb_mode,
-					LOCAL_MR_MODE, var.mr_mode, LOCAL_ARG1, arg1, -1);
+				scp_tree_store_append_with_values(store, &iter, NULL, LOCAL_NAME,
+					var.name, LOCAL_DISPLAY, var.display, LOCAL_VALUE, var.value,
+					LOCAL_HB_MODE, var.hb_mode, LOCAL_MR_MODE, var.mr_mode,
+					LOCAL_ARG1, arg1, -1);
 
 				if (!g_strcmp0(var.name, ld->name))
 					gtk_tree_selection_select_iter(selection, &iter);
@@ -105,34 +88,21 @@ void on_local_variables(GArray *nodes)
 	if (thread_id && frame_id && len == strlen(thread_id) &&
 		!memcmp(++token, thread_id, len) && !strcmp(token + len, frame_id))
 	{
-		char *name = NULL;
 		GtkTreeIter iter;
 		LocalData ld = { NULL, stack_entry() };
 
 		if (gtk_tree_selection_get_selected(selection, NULL, &iter))
-		{
-			gtk_tree_model_get(model, &iter, LOCAL_NAME, &ld.name, -1);
-			name = g_strdup(name);
-		}
+			gtk_tree_model_get((GtkTreeModel *) store, &iter, LOCAL_NAME, &ld.name, -1);
 
 		locals_clear();
-		array_foreach(parse_lead_array(nodes), (GFunc) local_node_variable, &ld);
+		parse_foreach(parse_lead_array(nodes), (GFunc) local_node_variable, &ld);
 		g_free(ld.name);
 	}
 }
 
-void on_local_modified(GArray *nodes)
-{
-	const char *token = parse_grab_token(nodes);
-
-	view_dirty(VIEW_LOCALS);
-	if (!g_strcmp0(token, thread_id))
-		debug_send_format(T, "04%s-stack-list-arguments 1", token);
-}
-
 void locals_clear(void)
 {
-	gtk_list_store_clear(store);
+	store_clear(store);
 }
 
 static void local_send_update(char token)
@@ -177,17 +147,9 @@ static void on_local_copy(const MenuItem *menu_item)
 	menu_copy(selection, menu_item);
 }
 
-static void on_local_modify(G_GNUC_UNUSED const MenuItem *menu_item)
+static void on_local_modify(const MenuItem *menu_item)
 {
-	GtkTreeIter iter;
-	const char *arg1;
-	char *prefix;
-
-	gtk_tree_selection_get_selected(selection, NULL, &iter);
-	gtk_tree_model_get(model, &iter, LOCAL_ARG1, &arg1, -1);
-	prefix = g_strdup_printf("08%s", arg1 ? thread_id : "");
-	menu_modify(model, &iter, prefix, menu_item ? MR_MODIFY : MR_MODSTR);
-	g_free(prefix);
+	menu_modify(selection, menu_item);
 }
 
 static void on_local_watch(G_GNUC_UNUSED const MenuItem *menu_item)
@@ -196,7 +158,7 @@ static void on_local_watch(G_GNUC_UNUSED const MenuItem *menu_item)
 	const char *name;
 
 	gtk_tree_selection_get_selected(selection, NULL, &iter);
-	gtk_tree_model_get(model, &iter, LOCAL_NAME, &name, -1);
+	scp_tree_store_get(store, &iter, LOCAL_NAME, &name, -1);
 	watch_add(name);
 }
 
@@ -230,7 +192,7 @@ static void on_local_mr_mode(const MenuItem *menu_item)
 static MenuItem local_menu_items[] =
 {
 	{ "local_refresh",    on_local_refresh,  DS_FRESHABLE,   NULL, NULL },
-	{ "local_unsorted",   on_local_unsorted, DS_SORTABLE,    NULL, NULL },
+	{ "local_unsorted",   on_local_unsorted, 0,              NULL, NULL },
 	{ "local_copy",       on_local_copy,     DS_COPYABLE,    NULL, NULL },
 	{ "local_modify",     on_local_modify,   DS_MODIFYABLE,  NULL, NULL },
 	{ "local_watch",      on_local_watch,    DS_WATCHABLE,   NULL, NULL },
@@ -269,10 +231,9 @@ void local_init(void)
 {
 	GtkWidget *menu;
 
-	view_connect("local_view", &model, &selection, local_cells, "local_window",
+	view_connect("local_view", &store, &selection, local_cells, "local_window",
 		&local_display);
 	menu = menu_select("local_menu", &local_menu_info, selection);
-	store = GTK_LIST_STORE(model);
 
 	g_signal_connect(menu, "show", G_CALLBACK(on_local_menu_show), NULL);
 	g_signal_connect(get_widget("local_modify"), "button-release-event",

@@ -21,6 +21,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 from build.wafutils import check_cfg_cached
+from waflib.Errors import ConfigurationError
+
 
 packages = [ ('gtk+-2.0', '2.16', 'GTK'),
              ('gthread-2.0', '', 'GTHREAD'),
@@ -33,3 +35,11 @@ for package_name, package_version, uselib_store in packages:
                      uselib_store=uselib_store,
                      mandatory=True,
                      args='--cflags --libs')
+
+# try Discount/libmarkdown
+conf.check(header_name='mkdio.h',
+       mandatory=False)
+if conf.env['HAVE_MKDIO_H']:
+    conf.check(lib='markdown',
+           uselib_store='DISCOUNT',
+           mandatory=False)

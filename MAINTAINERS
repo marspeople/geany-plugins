@@ -21,7 +21,7 @@ codenav
 P:
 M:
 W:
-S:
+S: Orphan
 
 commander
 P: Colomban Wendling <ban@herbesfolles.org>
@@ -82,7 +82,7 @@ geanylua
 P:
 M:
 W:
-S:
+S: Orphan
 
 geanymacro
 P: William Fraser <william.fraser@virgin.net>
@@ -103,10 +103,10 @@ W: http://plugins.geany.org/geanynumberedbookmarks.html
 S: Maintained
 
 geanypg
-P:
-M:
-W:
-S:
+P: Hans Alves <alves.h88@gmail.com>
+M: Hans Alves <alves.h88@gmail.com>
+W: http://plugins.geany.org/geanypg.html
+S: Odd Fixes
 
 geanyprj
 P: Yura Siamashka <yurand2@gmail.com>
@@ -138,10 +138,10 @@ M: Jiří Techet <techet@gmail.com>
 W: http://plugins.geany.org/gproject.html
 S: Maintained
 
-markdown 
+markdown
 P: Matthew Brush <matt@geany.org>
 M: Matthew Brush <matt@geany.org>
-W: 
+W:
 S: Maintained
 
 multiterm
@@ -150,11 +150,23 @@ M: Matthew Brush <matt@geany.org>
 W: http://plugins.geany.org/multiterm.html
 S: Maintained
 
+pairtaghighlighter
+P: Volodymyr Kononenko <vm@kononenko.ws>
+M: Volodymyr Kononenko <vm@kononenko.ws>
+W:
+S: Maintained
+
 pretty-printer
 P:
 M:
 W:
-S:
+S: Orphan
+
+pohelper
+P: Colomban Wendling <ban@herbesfolles.org>
+M: Colomban Wendling <ban@herbesfolles.org>
+W: http://plugins.geany.org/pohelper.html
+S: Maintained
 
 scope
 P: Dimitar Zhekov <dimitar.zhekov@gmail.com>
@@ -166,7 +178,7 @@ shiftcolumn
 P:
 M:
 W:
-S:
+S: Orphan
 
 spellcheck
 P: Enrico Tröger <enrico.troeger@uvena.de>
@@ -181,10 +193,10 @@ W: http://plugins.geany.org/tableconvert.html
 S: Maintained
 
 treebrowser
-P:
-M:
-W:
-S:
+P: Adam Dingle <adam@yorba.org>
+M: Adam Dingle <adam@yorba.org>
+W: http://plugins.geany.org/treebrowser.html
+S: Maintained
 
 updatechecker
 P: Frank Lanitz <frank@frank.uvena.de>

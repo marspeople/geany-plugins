@@ -82,7 +82,7 @@ void menu_mber_button_release(GtkTreeSelection *selection, GtkWidget *item,
 	GdkEventButton *event, GtkWidget *menu);
 
 void menu_copy(GtkTreeSelection *selection, const MenuItem *menu_item);
-void menu_modify(GtkTreeModel *model, GtkTreeIter *iter, const char *prefix, gint mr_mode);
+void menu_modify(GtkTreeSelection *selection, const MenuItem *menu_item);
 void menu_inspect(GtkTreeSelection *selection);
 
 void on_menu_display_booleans(const MenuItem *menu_item);
@@ -95,7 +95,7 @@ typedef struct _MenuKey
 	const gchar *label;
 } MenuKey;
 
-void menu_set_popup_keybindings(guint item);
+void menu_set_popup_keybindings(GeanyKeyGroup *scope_key_group, guint item);
 void menu_clear(void);
 void menu_update_state(DebugState state);
 

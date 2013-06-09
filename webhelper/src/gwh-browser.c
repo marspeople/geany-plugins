@@ -49,6 +49,12 @@
   (GTK_WIDGET_MAPPED ((w)))
 # endif /* defined (gtk_widget_get_mapped) */
 #endif /* GTK_CHECK_VERSION (2, 20, 0) */
+#if GTK_CHECK_VERSION (3, 0, 0)
+/* alias GtkObject, we implement the :destroy signal */
+# define GtkObject          GtkWidget
+# define GtkObjectClass     GtkWidgetClass
+# define GTK_OBJECT_CLASS   GTK_WIDGET_CLASS
+#endif /* GTK_CHECK_VERSION (3, 0, 0) */
 
 
 struct _GwhBrowserPrivate
@@ -76,6 +82,7 @@ struct _GwhBrowserPrivate
   GtkToolItem  *item_reload;
   GtkToolItem  *item_inspector;
   
+  GtkWidget    *statusbar;
   gchar        *hovered_link;
 };
 
@@ -647,6 +654,7 @@ gwh_browser_finalize (GObject *object)
     g_object_unref (self->priv->default_icon);
   }
   g_object_unref (self->priv->settings);
+  g_object_unref (self->priv->statusbar);
   g_free (self->priv->hovered_link);
   
   G_OBJECT_CLASS (gwh_browser_parent_class)->finalize (object);
@@ -892,8 +900,7 @@ get_statusbar_context_id (GtkStatusbar *statusbar)
   static guint id = 0;
   
   if (id == 0) {
-    id = gtk_statusbar_get_context_id (GTK_STATUSBAR (ui_widgets.statusbar),
-                                       "gwh-browser-hovered-link");
+    id = gtk_statusbar_get_context_id (statusbar, "gwh-browser-hovered-link");
   }
   
   return id;
@@ -905,7 +912,7 @@ on_web_view_hovering_over_link (WebKitWebView *view,
                                 gchar         *uri,
                                 GwhBrowser    *self)
 {
-  GtkStatusbar *statusbar = GTK_STATUSBAR (ui_widgets.statusbar);
+  GtkStatusbar *statusbar = GTK_STATUSBAR (self->priv->statusbar);
   
   if (self->priv->hovered_link) {
     gtk_statusbar_pop (statusbar, get_statusbar_context_id (statusbar));
@@ -925,7 +932,7 @@ on_web_view_leave_notify_event (GtkWidget        *widget,
                                 GwhBrowser       *self)
 {
   if (self->priv->hovered_link) {
-    GtkStatusbar *statusbar = GTK_STATUSBAR (ui_widgets.statusbar);
+    GtkStatusbar *statusbar = GTK_STATUSBAR (self->priv->statusbar);
     
     gtk_statusbar_pop (statusbar, get_statusbar_context_id (statusbar));
   }
@@ -937,7 +944,7 @@ on_web_view_enter_notify_event (GtkWidget        *widget,
                                 GwhBrowser       *self)
 {
   if (self->priv->hovered_link) {
-    GtkStatusbar *statusbar = GTK_STATUSBAR (ui_widgets.statusbar);
+    GtkStatusbar *statusbar = GTK_STATUSBAR (self->priv->statusbar);
     
     gtk_statusbar_push (statusbar, get_statusbar_context_id (statusbar),
                         self->priv->hovered_link);
@@ -996,6 +1003,13 @@ gwh_browser_init (GwhBrowser *self)
                                     : self->priv->paned),
                      self->priv->inspector_view);
   
+  self->priv->statusbar = ui_lookup_widget (geany->main_widgets->window, "statusbar");
+  if (self->priv->statusbar) {
+    g_object_ref (self->priv->statusbar);
+  } else {
+    /* in the unlikely case we can't get the Geany statusbar, fake one */
+    self->priv->statusbar = gtk_statusbar_new ();
+  }
   self->priv->hovered_link = NULL;
   
   g_signal_connect (self, "notify::orientation",

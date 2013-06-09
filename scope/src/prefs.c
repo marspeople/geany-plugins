@@ -58,6 +58,9 @@ gint pref_tooltips_fail_action;
 gint pref_tooltips_send_delay;
 gint pref_tooltips_length;
 
+gint pref_memory_bytes_per_line;
+gchar *pref_memory_font;
+
 #ifdef G_OS_UNIX
 static gboolean pref_terminal_save_pos;
 gboolean pref_terminal_padding;
@@ -195,49 +198,12 @@ char *prefs_file_name(void)
 	return g_build_filename(geany->app->configdir, "plugins", "scope", "scope.conf", NULL);
 }
 
-#ifdef stash_tree_setup
-static void on_configure_response(G_GNUC_UNUSED GtkDialog *dialog, gint response,
-	gpointer gdata)
-{
-	if (response == GTK_RESPONSE_OK || response == GTK_RESPONSE_APPLY)
-	{
-		char *configfile = prefs_file_name();
-
-		stash_tree_update(GTK_TREE_VIEW(gdata));
-		prefs_configure();
-		scope_configure();
-		stash_group_save_to_file(scope_group, configfile, G_KEY_FILE_KEEP_COMMENTS);
-		g_free(configfile);
-	}
-}
-
-static GPtrArray *pref_groups;
-
-GtkWidget *plugin_configure(GtkDialog *dialog)
-{
-	GtkWidget *vbox = gtk_vbox_new(FALSE, 6);
-	GtkWidget *window = gtk_scrolled_window_new(NULL, NULL);
-	GtkTreeView *tree = GTK_TREE_VIEW(gtk_tree_view_new());
-
-	gtk_box_pack_start(GTK_BOX(vbox), window, TRUE, TRUE, 0);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(window), GTK_POLICY_AUTOMATIC,
-		GTK_POLICY_AUTOMATIC);
-	gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(tree));
-	stash_tree_setup(pref_groups, tree);
-	stash_tree_display(tree);
-	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), tree);
-	gtk_widget_show_all(vbox);
-
-	return vbox;
-}
-#endif  /* stash_tree_setup */
-
 static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer gdata)
 {
 	char *configfile = prefs_file_name();
 
-	if (doc->real_path && utils_filenamecmp(doc->real_path, configfile))
+	if (doc->real_path && !utils_filenamecmp(doc->real_path, configfile))
 	{
 		GKeyFile *config = g_key_file_new();
 
@@ -265,7 +231,7 @@ void prefs_init(void)
 	group = stash_group_new("scope");
 	stash_group_add_string(group, &pref_gdb_executable, "gdb_executable", "gdb");
 	stash_group_add_boolean(group, &pref_gdb_async_mode, "gdb_async_mode", FALSE);
-	stash_group_add_integer(group, &pref_gdb_buffer_length, "gdb_buffer_length", 0x3FFF);
+	stash_group_add_integer(group, &pref_gdb_buffer_length, "gdb_buffer_length", 16383);
 	stash_group_add_integer(group, &pref_gdb_wait_death, "gdb_wait_death", 20);
 #ifndef G_OS_UNIX
 	stash_group_add_integer(group, &pref_gdb_send_interval, "gdb_send_interval", 5);
@@ -287,16 +253,12 @@ void prefs_init(void)
 	stash_group_add_integer(group, &pref_panel_tab_pos, "panel_tab_pos", GTK_POS_TOP);
 	stash_group_add_integer(group, &pref_show_recent_items, "show_recent_items", 10);
 	stash_group_add_integer(group, &pref_show_toolbar_items, "show_toolbar_items", 0xFF);
-	stash_group_add_integer(group, &pref_tooltips_fail_action, "tooltips_fail_action", 25);
+	stash_group_add_integer(group, &pref_tooltips_fail_action, "tooltips_fail_action", 0);
 	stash_group_add_integer(group, &pref_tooltips_send_delay, "tooltips_send_delay", 25);
-	stash_group_add_integer(group, &pref_tooltips_length, "tooltips_length", 0x7FF);
+	stash_group_add_integer(group, &pref_tooltips_length, "tooltips_length", 2048);
+	stash_group_add_integer(group, &pref_memory_bytes_per_line, "memory_line_bytes", 16);
+	stash_group_add_string(group, &pref_memory_font, "memory_font", "");
 	scope_group = group;
-
-#ifdef stash_tree_setup
-	pref_groups = g_ptr_array_new();
-	stash_group_set_various(group, TRUE);
-	g_ptr_array_add(pref_groups, group);
-#endif
 
 	config_item = ui_add_config_file_menu_item(configfile, NULL, NULL);
 	plugin_signal_connect(geany_plugin, NULL, "document-save", FALSE,
@@ -390,8 +352,4 @@ void prefs_finalize(void)
 	utils_stash_group_free(terminal_group);
 	for (i = 0; i < MARKER_COUNT; i++)
 		utils_stash_group_free(marker_group[i]);
-
-#ifdef stash_tree_setup
-	g_ptr_array_free(pref_groups, TRUE);
-#endif
 }

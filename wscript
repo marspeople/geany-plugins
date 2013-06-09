@@ -44,6 +44,7 @@ from waflib import Logs, Scripting, Utils
 from waflib.Tools import c_preproc
 from waflib.Errors import ConfigurationError
 from waflib.TaskGen import feature
+from waflib.Tools.compiler_c import c_compiler
 from build.wafutils import (
     add_define_to_env,
     add_to_env_and_define,
@@ -60,7 +61,7 @@ from build.wafutils import (
 
 
 APPNAME = 'geany-plugins'
-VERSION = '1.23'
+VERSION = '1.24'
 LINGUAS_FILE = 'po/LINGUAS'
 
 top = '.'
@@ -87,7 +88,7 @@ def configure(conf):
                    args='--cflags --libs')
     check_cfg_cached(conf,
                    package='geany',
-                   atleast_version='1.23',
+                   atleast_version='1.24',
                    uselib_store='GEANY',
                    mandatory=True,
                    args='--cflags --libs')
@@ -174,9 +175,9 @@ def setup_configuration_env(conf):
         add_to_env_and_define(conf, 'GEANYPLUGINS_DATADIR', conf.env['DATADIR'], quote=True)
         conf.env['GEANYPLUGINS_DATADIR'] = conf.env['DATADIR']
     # common
-    pkgdatadir = os.path.join(conf.env['GEANYPLUGINS_DATADIR'], 'geany-plugins')
-    pkglibdir = os.path.join(conf.env['LIBDIR'], 'geany-plugins')
-    pkgincludedir = os.path.join(conf.env['G_PREFIX'], 'include')
+    pkgdatadir = '%s/%s' % (conf.env['GEANYPLUGINS_DATADIR'], 'geany-plugins')
+    pkglibdir = '%s/%s' % (conf.env['LIBDIR'], 'geany-plugins')
+    pkgincludedir = '%s/%s' % (conf.env['G_PREFIX'], 'include')
     add_to_env_and_define(conf, 'INCLUDEDIR', pkgincludedir, quote=True)
     add_to_env_and_define(conf, 'DATAROOTDIR', conf.env['GEANYPLUGINS_DATADIR'], quote=True)
     add_to_env_and_define(conf, 'PKGDATADIR', pkgdatadir, quote=True)
@@ -190,6 +191,10 @@ def setup_configuration_env(conf):
 
 
 def options(opt):
+    # Disable MSVC detetion on win32: building Geany-Plugins with MSVC is currently not supported
+    # If anyone wants to add support for building with MSVC, this hack should be removed.
+    c_compiler['win32'] = ['gcc']
+
     opt.tool_options('compiler_cc')
     opt.tool_options('intltool')
 

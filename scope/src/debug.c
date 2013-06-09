@@ -22,7 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
+#include <glib.h>
 
 #ifdef G_OS_UNIX
 #include <sys/types.h>
@@ -33,30 +33,40 @@
 
 #define WNOHANG 0
 
-static int waitpid(GPid pid, int *stat_loc, G_GNUC_UNUSED int options)
+static int waitpid(HANDLE pid, int *stat_loc, int options)
 {
-	DWORD status;
-
-	if (GetExitCodeProcess(pid, &status))
+	if (options == WNOHANG)
 	{
-		if (status == STILL_ACTIVE)
-			return 0;
+		DWORD status;
 
-		if (stat_loc)
-			*stat_loc = status;
-		return 1;
+		if (GetExitCodeProcess(pid, &status))
+		{
+			if (status == STILL_ACTIVE)
+				return 0;
+
+			if (stat_loc)
+				*stat_loc = status;
+			return 1;
+		}
 	}
 
+	errno = EINVAL;
 	return -1;
 }
 
 #define SIGKILL 9
 
-static int kill(GPid pid, int sig)
+static int kill(HANDLE pid, int sig)
 {
-	return TerminateProcess(pid, sig) ? 0 : -1;
+	if (TerminateProcess(pid, sig))
+		return 0;
+
+	errno = EINVAL;
+	return -1;
 }
 #endif  /* G_OS_UNIX */
+
+#include "common.h"
 
 extern guint thread_count;
 extern guint thread_prompt;
@@ -651,14 +661,14 @@ void on_debug_step_out(G_GNUC_UNUSED const MenuItem *menu_item)
 	debug_send_thread("-exec-finish");
 }
 
-void on_debug_terminate(G_GNUC_UNUSED const MenuItem *menu_item)
+void on_debug_terminate(const MenuItem *menu_item)
 {
 	switch (debug_state())
 	{
 		case DS_DEBUG :
 		case DS_READY :
 		{
-			if (!program_auto_run_exit)
+			if (menu_item && !debug_auto_exit)
 			{
 				debug_send_command(N, "kill");
 				break;
@@ -731,7 +741,6 @@ char *debug_send_evaluate(char token, gint scid, const gchar *expr)
 
 	debug_send_format(F, "0%c%d-data-evaluate-expression \"%s\"", token, scid, string->str);
 	g_string_free(string, TRUE);
-
 	return locale;
 }
 
@@ -748,9 +757,6 @@ void debug_finalize(void)
 	{
 		signal(SIGINT, SIG_DFL);
 		g_source_remove(source_id);
-		/* avoid faults in g_main_context_dispatch() */
-		while (gtk_events_pending())
-			gtk_main_iteration();
 	}
 
 	if (gdb_state != INACTIVE)
@@ -758,8 +764,11 @@ void debug_finalize(void)
 		gint count = 0;
 
 		if (kill(gdb_pid, SIGKILL) == 0)
-			while (waitpid(gdb_pid, NULL, WNOHANG) == 0 && count++ <= pref_gdb_wait_death)
+		{
+			g_usleep(G_USEC_PER_SEC / 1000);
+			while (waitpid(gdb_pid, NULL, WNOHANG) == 0 && count++ < pref_gdb_wait_death)
 				g_usleep(G_USEC_PER_SEC / 100);
+		}
 
 		free_gdb();  /* may be still alive, but we can't do anything more */
 		statusbar_update_state(DS_INACTIVE);

@@ -74,8 +74,5 @@ void gtk216_init(void)
 	SortColumnId *scd;
 
 	for (scd = sort_column_ids; scd->id; scd++)
-	{
-		GtkTreeViewColumn *column = GTK_TREE_VIEW_COLUMN(get_object(scd->id));
-		gtk_tree_view_column_set_sort_column_id(column, scd->sort_column_id);
-	}
+		gtk_tree_view_column_set_sort_column_id(get_column(scd->id), scd->sort_column_id);
 }

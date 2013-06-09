@@ -8,7 +8,7 @@ AC_DEFUN([GP_CHECK_GEANYGENDOC],
     CTPL_VERSION=0.3
 
     GP_CHECK_PLUGIN_DEPS([GeanyGenDoc], GEANYGENDOC,
-                         [gtk+-2.0 >= ${GTK_VERSION}
+                         [$GP_GTK_PACKAGE >= ${GTK_VERSION}
                           glib-2.0 >= ${GLIB_VERSION}
                           gio-2.0 >= ${GIO_VERSION}
                           ctpl >= ${CTPL_VERSION}])
@@ -17,7 +17,7 @@ AC_DEFUN([GP_CHECK_GEANYGENDOC],
     AC_SUBST([RST2HTML])
     AM_CONDITIONAL([BUILD_RST], [test "x$RST2HTML" != "xno"])
 
-    GP_STATUS_PLUGIN_ADD([GeanyGenDoc], [$enable_geanygendoc])
+    GP_COMMIT_PLUGIN_STATUS([GeanyGenDoc])
 
     AC_CONFIG_FILES([
         geanygendoc/Makefile

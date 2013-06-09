@@ -32,7 +32,8 @@ GeanyFunctions *geany_functions;
 PLUGIN_VERSION_CHECK(215)
 
 PLUGIN_SET_TRANSLATABLE_INFO(LOCALEDIR, GETTEXT_PACKAGE, _("Scope Debugger"),
-	_("Simple GDB front-end."), "0.78" , "Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>")
+	_("Relatively simple GDB front-end."), "0.88" ,
+	"Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>")
 
 /* Keybinding(s) */
 enum
@@ -55,8 +56,6 @@ enum
 	INSPECT_KB,
 	COUNT_KB
 };
-
-PLUGIN_KEY_GROUP(scope, COUNT_KB)
 
 static MenuKey debug_menu_keys[EVALUATE_KB] =
 {
@@ -235,11 +234,19 @@ void statusbar_update_state(DebugState state)
 		if (state == DS_INACTIVE)
 		{
 			gtk_widget_hide(debug_statusbar);
+		#if GTK_CHECK_VERSION(3, 0, 0)
+			gtk_window_set_has_resize_grip(GTK_WINDOW(geany->main_widgets->window), TRUE);
+		#else
 			gtk_statusbar_set_has_resize_grip(geany_statusbar, TRUE);
+		#endif
 		}
 		else if (last_state == DS_INACTIVE)
 		{
+		#if GTK_CHECK_VERSION(3, 0, 0)
+			gtk_window_set_has_resize_grip(GTK_WINDOW(geany->main_widgets->window), FALSE);
+		#else
 			gtk_statusbar_set_has_resize_grip(geany_statusbar, FALSE);
+		#endif
 			gtk_widget_show(debug_statusbar);
 		}
 
@@ -389,6 +396,15 @@ static void on_geany_startup_complete(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED 
 		program_context_changed();
 }
 
+static void on_build_start(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED gpointer gdata)
+{
+	if (debug_state() != DS_INACTIVE && dialogs_show_question(_("Build action activated. "
+		"Terminate debugging?")))
+	{
+		on_debug_terminate(NULL);
+	}
+}
+
 typedef struct _ScopeCallback  /* we don't want callbacks on builder init failure */
 {
 	const char *name;
@@ -407,6 +423,7 @@ static const ScopeCallback scope_callbacks[] =
 	{ "project-open",             G_CALLBACK(on_project_open) },
 	{ "project-close",            G_CALLBACK(on_project_close) },
 	{ "geany-startup-complete",   G_CALLBACK(on_geany_startup_complete) },
+	{ "build-start",              G_CALLBACK(on_build_start) },
 	{ NULL, NULL }
 };
 
@@ -475,17 +492,25 @@ void open_debug_panel(void)
 
 void plugin_init(G_GNUC_UNUSED GeanyData *gdata)
 {
+	GeanyKeyGroup *scope_key_group;
+	char *gladefile = g_build_filename(PLUGINDATADIR, "scope.glade", NULL);
 	GError *gerror = NULL;
 	GtkWidget *menubar1 = find_widget(geany->main_widgets->window, "menubar1");
 	guint item;
 	const MenuKey *menu_key = debug_menu_keys;
 	ToolItem *tool_item = toolbar_items;
 	const ScopeCallback *scb;
-	char *gladefile = g_build_filename(PLUGINDATADIR, "scope.glade", NULL);
 
 	main_locale_init(LOCALEDIR, GETTEXT_PACKAGE);
+	scope_key_group = plugin_set_key_group(geany_plugin, "scope", COUNT_KB, NULL);
 	builder = gtk_builder_new();
 	gtk_builder_set_translation_domain(builder, GETTEXT_PACKAGE);
+
+	if (!g_type_from_name("ScpTreeStore"))
+	{
+		plugin_module_make_resident(geany_plugin);
+		scp_tree_store_get_type();
+	}
 
 	if (!gtk_builder_add_from_file(builder, gladefile, &gerror))
 	{
@@ -515,7 +540,7 @@ void plugin_init(G_GNUC_UNUSED GeanyData *gdata)
 
 	for (item = 0; item < EVALUATE_KB; item++, menu_key++)
 	{
-		keybindings_set_item(plugin_key_group, item, on_scope_key, 0, 0, menu_key->name,
+		keybindings_set_item(scope_key_group, item, on_scope_key, 0, 0, menu_key->name,
 			_(menu_key->label), debug_menu_items[item].widget);
 	}
 
@@ -543,8 +568,9 @@ void plugin_init(G_GNUC_UNUSED GeanyData *gdata)
 	watch_init();
 	stack_init();
 	local_init();
+	memory_init();
 	menu_init();
-	menu_set_popup_keybindings(item);
+	menu_set_popup_keybindings(scope_key_group, item);
 
 	for (item = 0; tool_item->index != -1; item++, tool_item++)
 	{
@@ -562,7 +588,7 @@ void plugin_init(G_GNUC_UNUSED GeanyData *gdata)
 	}
 
 	toolbar_update_state(DS_INACTIVE);
-	watches_update_state(DS_INACTIVE);
+	views_update_state(DS_INACTIVE);
 	scope_configure();
 
 	g_signal_connect(debug_panel, "switch-page", G_CALLBACK(on_view_changed), NULL);
@@ -578,7 +604,6 @@ void plugin_cleanup(void)
 		return;
 
 	gtk_widget_destroy(debug_item);
-	gtk_widget_destroy(debug_statusbar);
 	gtk_widget_destroy(debug_panel);
 
 	for (item = toolbar_items; item->index != -1; item++)
@@ -591,12 +616,14 @@ void plugin_cleanup(void)
 	inspect_finalize();
 	thread_finalize();
 	break_finalize();
-	utils_finalize();
+	memory_finalize();
+	menu_finalize();
 	views_finalize();
-	debug_finalize();
+	utils_finalize();
 	parse_finalize();
 	prefs_finalize();
-	menu_finalize();
+	debug_finalize();
 
+	gtk_widget_destroy(debug_statusbar);
 	g_object_unref(builder);
 }

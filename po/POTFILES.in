@@ -210,10 +210,16 @@ gproject/src/gproject-menu.c
 gproject/src/gproject-project.c
 gproject/src/gproject-sidebar.c
 
-# Markdown 
+# Markdown
 markdown/src/conf.c
 markdown/src/plugin.c
 
+
+# Pairtaghighlighter
+pairtaghighlighter/src/pair_tag_highlighter.c
+# PoHelper
+[type: gettext/glade]pohelper/data/menus.ui
+pohelper/src/gph-plugin.c
 
 # Pretty-printer
 pretty-printer/src/PrettyPrinter.c
@@ -226,6 +232,7 @@ scope/src/break.c
 scope/src/conterm.c
 scope/src/debug.c
 scope/src/inspect.c
+scope/src/memory.c
 scope/src/menu.c
 scope/src/parse.c
 scope/src/plugme.c
@@ -235,6 +242,7 @@ scope/src/scope.c
 scope/src/thread.c
 scope/src/utils.c
 scope/src/views.c
+scope/src/store/scptreestore.c
 
 # Spell Check
 spellcheck/src/speller.c

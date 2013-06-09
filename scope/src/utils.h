@@ -27,28 +27,18 @@ void utils_handle_button_press(GtkWidget *widget, GdkEventButton *event);
 void utils_handle_button_release(GtkWidget *widget, GdkEventButton *event);
 gboolean utils_check_path(const char *pathname, gboolean file, int mode);  /* "" ok */
 const gchar *utils_skip_spaces(const gchar *text);
-
-#define array_new(type, start) g_array_sized_new(FALSE, FALSE, sizeof(type), (start))
-gchar *array_append(GArray *array);
-gchar *array_find(GArray *array, const char *key, gboolean filename);
-void array_foreach(GArray *array, GFunc each_func, gpointer gdata);
-guint array_index(GArray *array, const void *data);
-void array_remove(GArray *array, const void *data);
-void array_clear(GArray *array, GFreeFunc free_func);
-void array_free(GArray *array, GFreeFunc free_func);
-typedef gboolean (*ASaveFunc)(GKeyFile *config, const char *section, void *data);
-void array_save(GArray *array, GKeyFile *config, const char *prefix, ASaveFunc save_func);
+void utils_strchrepl(char *text, char c, char repl);
 
 #define iff(expr, ...) if (G_UNLIKELY(!(expr))) dc_error(__VA_ARGS__); else
 #define utils_atoi0(s) ((s) ? atoi(s) : 0)  /* note: 2 references to s */
 
-gboolean model_find(GtkTreeModel *model, GtkTreeIter *iter, guint column, const char *key);
-void model_foreach(GtkTreeModel *model, GFunc each_func, gpointer gdata);
-void model_save(GtkTreeModel *model, GKeyFile *config, const char *prefix,
+gboolean store_find(ScpTreeStore *store, GtkTreeIter *iter, guint column, const char *key);
+void store_foreach(ScpTreeStore *store, GFunc each_func, gpointer gdata);
+void store_save(ScpTreeStore *store, GKeyFile *config, const char *prefix,
 	gboolean (*save_func)(GKeyFile *config, const char *section, GtkTreeIter *iter));
-gint model_string_compare(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gint column);
-gint model_gint_compare(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer gdata);
-gint model_seek_compare(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer gdata);
+gint store_gint_compare(ScpTreeStore *store, GtkTreeIter *a, GtkTreeIter *b, gpointer gdata);
+gint store_seek_compare(ScpTreeStore *store, GtkTreeIter *a, GtkTreeIter *b, gpointer gdata);
+#define store_clear(store) scp_tree_store_clear_children((store), NULL, FALSE)
 
 void utils_load(GKeyFile *config, const char *prefix,
 	gboolean (*load_func)(GKeyFile *config, const char *section));
@@ -110,8 +100,8 @@ GtkWidget *dialog_connect(const char *name);
 
 gchar *utils_text_buffer_get_text(GtkTextBuffer *text, gint maxlen);
 void utils_enter_to_clicked(GtkWidget *widget, GtkWidget *button);
+void utils_tree_set_cursor(GtkTreeSelection *selection, GtkTreeIter *iter, gdouble alignment);
 
-void utils_init(void);
 void utils_finalize(void);
 
 #define UTILS_H 1

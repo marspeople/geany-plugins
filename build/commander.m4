@@ -3,10 +3,10 @@ AC_DEFUN([GP_CHECK_COMMANDER],
     GP_ARG_DISABLE([Commander], [auto])
 
     GP_CHECK_PLUGIN_DEPS([Commander], [COMMANDER],
-                         [gtk+-2.0 >= 2.16
+                         [$GP_GTK_PACKAGE >= 2.16
                           glib-2.0 >= 2.4])
 
-    GP_STATUS_PLUGIN_ADD([Commander], [$enable_commander])
+    GP_COMMIT_PLUGIN_STATUS([Commander])
 
     AC_CONFIG_FILES([
         commander/Makefile

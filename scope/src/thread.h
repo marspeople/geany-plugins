@@ -34,7 +34,7 @@ typedef enum _ThreadState
 	THREAD_AT_ASSEMBLER
 } ThreadState;
 
-extern const char *thread_id;  /* gdb id, NULL if none selected */
+extern const char *thread_id;
 extern ThreadState thread_state;
 const char *thread_group_id(void);
 
@@ -42,16 +42,18 @@ void on_thread_running(GArray *nodes);
 void on_thread_stopped(GArray *nodes);
 void on_thread_created(GArray *nodes);
 void on_thread_exited(GArray *nodes);
+void on_thread_selected(GArray *nodes);
 void on_thread_info(GArray *nodes);
+void on_thread_follow(GArray *nodes);
 void on_thread_frame(GArray *nodes);
 
 void threads_mark(GeanyDocument *doc);
 void threads_clear(void);
 void threads_delta(ScintillaObject *sci, const char *real_path, gint start, gint delta);
-
 gboolean threads_update(void);
-#define thread_query_frame() \
-	debug_send_format(T, "04%s-stack-info-frame", thread_id)
+
+void thread_query_frame(char token);
+void thread_synchronize(void);
 
 void thread_init(void);
 void thread_finalize(void);

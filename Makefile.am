@@ -98,6 +98,14 @@ if ENABLE_MULTITERM
 SUBDIRS += multiterm
 endif
 
+if ENABLE_PAIRTAGHIGHLIGHTER
+SUBDIRS += pairtaghighlighter
+endif
+
+if ENABLE_POHELPER
+SUBDIRS += pohelper
+endif
+
 if ENABLE_PRETTY_PRINTER
 SUBDIRS += pretty-printer
 endif

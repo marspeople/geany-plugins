@@ -33,8 +33,7 @@ enum
 	WATCH_ENABLED
 };
 
-static GtkListStore *store;
-static GtkTreeModel *model;
+static ScpTreeStore *store;
 static GtkTreeSelection *selection;
 static gint scid_gen = 0;
 
@@ -44,9 +43,9 @@ static void on_watch_enabled_toggled(G_GNUC_UNUSED GtkCellRendererToggle *render
 	GtkTreeIter iter;
 	gboolean enabled;
 
-	gtk_tree_model_get_iter_from_string(model, &iter, path_str);
-	gtk_tree_model_get(model, &iter, WATCH_ENABLED, &enabled, -1);
-	gtk_list_store_set(store, &iter, WATCH_ENABLED, !enabled, -1);
+	scp_tree_store_get_iter_from_string(store, &iter, path_str);
+	scp_tree_store_get(store, &iter, WATCH_ENABLED, &enabled, -1);
+	scp_tree_store_set(store, &iter, WATCH_ENABLED, !enabled, -1);
 }
 
 static void watch_iter_update(GtkTreeIter *iter, gpointer gdata)
@@ -55,16 +54,11 @@ static void watch_iter_update(GtkTreeIter *iter, gpointer gdata)
 	gint scid;
 	gboolean enabled;
 
-	gtk_tree_model_get(model, iter, WATCH_EXPR, &expr, WATCH_SCID, &scid, WATCH_ENABLED,
+	scp_tree_store_get(store, iter, WATCH_EXPR, &expr, WATCH_SCID, &scid, WATCH_ENABLED,
 		&enabled, -1);
 
 	if (enabled || GPOINTER_TO_INT(gdata))
 		g_free(debug_send_evaluate('6', scid, expr));
-}
-
-static void watch_fetch(GtkTreeIter *iter)
-{
-	watch_iter_update(iter, GINT_TO_POINTER(TRUE));
 }
 
 static void on_watch_expr_edited(G_GNUC_UNUSED GtkCellRendererText *renderer,
@@ -76,19 +70,17 @@ static void on_watch_expr_edited(G_GNUC_UNUSED GtkCellRendererText *renderer,
 		const gchar *expr;
 		gboolean enabled;
 
-		gtk_tree_model_get_iter_from_string(model, &iter, path_str);
-		gtk_tree_model_get(model, &iter, WATCH_EXPR, &expr, WATCH_ENABLED, &enabled, -1);
+		scp_tree_store_get_iter_from_string(store, &iter, path_str);
+		scp_tree_store_get(store, &iter, WATCH_EXPR, &expr, WATCH_ENABLED, &enabled, -1);
 
 		if (strcmp(new_text, expr))
 		{
-			const ParseMode *pm = parse_mode_find(new_text);
-
-			gtk_list_store_set(store, &iter, WATCH_EXPR, new_text, WATCH_DISPLAY, NULL,
-				WATCH_VALUE, NULL, WATCH_HB_MODE, pm->hb_mode, WATCH_MR_MODE,
-				pm->mr_mode, -1);
+			scp_tree_store_set(store, &iter, WATCH_EXPR, new_text, WATCH_DISPLAY, NULL,
+				WATCH_VALUE, NULL, WATCH_HB_MODE, parse_mode_get(new_text, MODE_HBIT),
+				WATCH_MR_MODE, parse_mode_get(new_text, MODE_MEMBER), -1);
 
 			if (enabled && (debug_state() & DS_DEBUG))
-				watch_fetch(&iter);
+				watch_iter_update(&iter, GINT_TO_POINTER(TRUE));
 		}
 	}
 }
@@ -96,23 +88,8 @@ static void on_watch_expr_edited(G_GNUC_UNUSED GtkCellRendererText *renderer,
 static void on_watch_display_edited(G_GNUC_UNUSED GtkCellRendererText *renderer,
 	gchar *path_str, gchar *new_text, G_GNUC_UNUSED gpointer gdata)
 {
-	if (validate_column(new_text, TRUE))
-	{
-		if (debug_state() & DS_SENDABLE)
-		{
-			GtkTreeIter iter;
-			gint scid;
-			char *format;
-
-			gtk_tree_model_get_iter_from_string(model, &iter, path_str);
-			gtk_tree_model_get(model, &iter, WATCH_SCID, &scid, -1);
-			format = g_strdup_printf("09%d%s", scid, "-gdb-set var %s=%s");
-			view_display_edited(model, &iter, new_text, format);
-			g_free(format);
-		}
-		else
-			plugin_beep();
-	}
+	view_display_edited(store, debug_state() & DS_SENDABLE, path_str, "07-gdb-set var %s=%s",
+		new_text);
 }
 
 static const TreeCell watch_cells[] =
@@ -123,37 +100,23 @@ static const TreeCell watch_cells[] =
 	{ NULL, NULL }
 };
 
-static GtkTreeIter wd_iter;
-static gboolean wd_valid;
-
 static void watch_set(GArray *nodes, gchar *display, const char *value)
 {
 	const char *token = parse_grab_token(nodes);
+	GtkTreeIter iter;
 
-	if (wd_valid)
-	{
-		gint scid;
-		gtk_tree_model_get(model, &wd_iter, WATCH_SCID, &scid, -1);
-		wd_valid = atoi(token) == scid;
-	}
-
-	if (!wd_valid)
-		wd_valid = model_find(model, &wd_iter, WATCH_SCID, token);
-
-	iff (wd_valid, "%s: w_scid not found", token)
+	iff (store_find(store, &iter, WATCH_SCID, token), "%s: w_scid not found", token)
 	{
 		if (!display)
 		{
 			gint hb_mode, mr_mode;
 
-			gtk_tree_model_get(model, &wd_iter, WATCH_HB_MODE, &hb_mode, WATCH_MR_MODE,
+			scp_tree_store_get(store, &iter, WATCH_HB_MODE, &hb_mode, WATCH_MR_MODE,
 				&mr_mode, -1);
 			display = parse_get_display_from_7bit(value, hb_mode, mr_mode);
 		}
 
-		gtk_list_store_set(store, &wd_iter, WATCH_DISPLAY, display, WATCH_VALUE, value,
-			-1);
-		wd_valid = gtk_tree_model_iter_next(model, &wd_iter);
+		scp_tree_store_set(store, &iter, WATCH_DISPLAY, display, WATCH_VALUE, value, -1);
 	}
 
 	g_free(display);
@@ -166,34 +129,25 @@ void on_watch_value(GArray *nodes)
 
 void on_watch_error(GArray *nodes)
 {
-	watch_set(nodes, parse_find_error(nodes), NULL);
-}
-
-void on_watch_modified(GArray *nodes)
-{
-	const char *token = parse_grab_token(nodes);
-	GtkTreeIter iter;
-
-	iff (model_find(model, &iter, WATCH_SCID, token), "%s: w_scid not found", token)
-		watch_fetch(&iter);
+	watch_set(nodes, parse_get_error(nodes), NULL);
 }
 
 static void watch_iter_clear(GtkTreeIter *iter, G_GNUC_UNUSED gpointer gdata)
 {
-	gtk_list_store_set(store, iter, WATCH_DISPLAY, NULL, WATCH_VALUE, NULL, -1);
+	scp_tree_store_set(store, iter, WATCH_DISPLAY, NULL, WATCH_VALUE, NULL, -1);
 }
 
 void watches_clear(void)
 {
-	model_foreach(model, (GFunc) watch_iter_clear, NULL);
+	store_foreach(store, (GFunc) watch_iter_clear, NULL);
 }
 
 gboolean watches_update(void)
 {
-	if (view_stack_update())
+	if (g_strcmp0(frame_id, "0") && view_stack_update())
 		return FALSE;
 
-	model_foreach(model, (GFunc) watch_iter_update, GPOINTER_TO_INT(FALSE));
+	store_foreach(store, (GFunc) watch_iter_update, GPOINTER_TO_INT(FALSE));
 	return TRUE;
 }
 
@@ -204,16 +158,16 @@ void watch_add(const gchar *text)
 
 	if (validate_column(expr, TRUE))
 	{
-		const ParseMode *pm = parse_mode_find(expr);
 		GtkTreeIter iter;
 
-		gtk_list_store_append(store, &iter);
-		gtk_list_store_set(store, &iter, WATCH_EXPR, expr, WATCH_HB_MODE, pm->hb_mode,
-			WATCH_MR_MODE, pm->mr_mode, WATCH_SCID, ++scid_gen, WATCH_ENABLED, TRUE, -1);
-		gtk_tree_selection_select_iter(selection, &iter);
+		scp_tree_store_append_with_values(store, &iter, NULL, WATCH_EXPR, expr,
+			WATCH_HB_MODE, parse_mode_get(expr, MODE_HBIT), WATCH_MR_MODE,
+			parse_mode_get(expr, MODE_MEMBER), WATCH_SCID, ++scid_gen, WATCH_ENABLED,
+			TRUE, -1);
+		utils_tree_set_cursor(selection, &iter, 0.5);
 
 		if (debug_state() & DS_DEBUG)
-			watch_fetch(&iter);
+			watch_iter_update(&iter, NULL);
 	}
 
 	g_free(expr);
@@ -228,26 +182,23 @@ void watches_update_state(DebugState state)
 
 void watches_delete_all(void)
 {
-	gtk_list_store_clear(store);
-	wd_valid = FALSE;
+	store_clear(store);
 	scid_gen = 0;
 }
 
 static gboolean watch_load(GKeyFile *config, const char *section)
 {
 	gchar *expr = utils_key_file_get_string(config, section, "expr");
-	gint hb_mode = g_key_file_get_integer(config, section, "hbit", NULL);
-	gint mr_mode = g_key_file_get_integer(config, section, "member", NULL);
-	gboolean enabled = g_key_file_get_boolean(config, section, "enabled", NULL);
+	gint hb_mode = utils_get_setting_integer(config, section, "hbit", HB_DEFAULT);
+	gint mr_mode = utils_get_setting_integer(config, section, "member", MR_DEFAULT);
+	gboolean enabled = utils_get_setting_boolean(config, section, "enabled", TRUE);
 	gboolean valid = FALSE;
 
 	if (expr && (unsigned) hb_mode < HB_COUNT && (unsigned) mr_mode < MR_MODIFY)
 	{
-		GtkTreeIter iter;
-
-		gtk_list_store_append(store, &iter);
-		gtk_list_store_set(store, &iter, WATCH_EXPR, expr, WATCH_HB_MODE, hb_mode,
-			WATCH_MR_MODE, mr_mode, WATCH_SCID, ++scid_gen, WATCH_ENABLED, enabled, -1);
+		scp_tree_store_append_with_values(store, NULL, NULL, WATCH_EXPR, expr,
+			WATCH_HB_MODE, hb_mode, WATCH_MR_MODE, mr_mode, WATCH_SCID, ++scid_gen,
+			WATCH_ENABLED, enabled, -1);
 		valid = TRUE;
 	}
 
@@ -263,12 +214,12 @@ void watches_load(GKeyFile *config)
 
 static gboolean watch_save(GKeyFile *config, const char *section, GtkTreeIter *iter)
 {
-	gchar *expr;
+	const gchar *expr;
 	gint hb_mode;
 	gint mr_mode;
 	gboolean enabled;
 
-	gtk_tree_model_get(model, iter, WATCH_EXPR, &expr, WATCH_HB_MODE, &hb_mode,
+	scp_tree_store_get(store, iter, WATCH_EXPR, &expr, WATCH_HB_MODE, &hb_mode,
 		WATCH_MR_MODE, &mr_mode, WATCH_ENABLED, &enabled, -1);
 	g_key_file_set_string(config, section, "expr", expr);
 	g_key_file_set_integer(config, section, "hbit", hb_mode);
@@ -279,7 +230,7 @@ static gboolean watch_save(GKeyFile *config, const char *section, GtkTreeIter *i
 
 void watches_save(GKeyFile *config)
 {
-	model_save(model, config, "watch", watch_save);
+	store_save(store, config, "watch", watch_save);
 }
 
 static void on_watch_refresh(G_GNUC_UNUSED const MenuItem *menu_item)
@@ -299,7 +250,7 @@ static void on_watch_add(G_GNUC_UNUSED const MenuItem *menu_item)
 	const gchar *expr = NULL;
 
 	if (gtk_tree_selection_get_selected(selection, NULL, &iter))
-		gtk_tree_model_get(model, &iter, WATCH_EXPR, &expr, -1);
+		scp_tree_store_get(store, &iter, WATCH_EXPR, &expr, -1);
 
 	watch_add(expr);
 }
@@ -311,15 +262,7 @@ static void on_watch_copy(const MenuItem *menu_item)
 
 static void on_watch_modify(const MenuItem *menu_item)
 {
-	GtkTreeIter iter;
-	gint scid;
-	char *prefix;
-
-	gtk_tree_selection_get_selected(selection, NULL, &iter);
-	gtk_tree_model_get(model, &iter, WATCH_SCID, &scid, -1);
-	prefix = g_strdup_printf("09%d", scid);
-	menu_modify(model, &iter, prefix, menu_item ? MR_MODIFY : MR_MODSTR);
-	g_free(prefix);
+	menu_modify(selection, menu_item);
 }
 
 static void on_watch_inspect(G_GNUC_UNUSED const MenuItem *menu_item)
@@ -347,14 +290,9 @@ static void on_watch_delete(G_GNUC_UNUSED const MenuItem *menu_item)
 	GtkTreeIter iter;
 
 	if (gtk_tree_selection_get_selected(selection, NULL, &iter))
-	{
-		gtk_list_store_remove(store, &iter);
-		wd_valid = FALSE;
-	}
+		scp_tree_store_remove(store, &iter);
 }
 
-#define DS_FRESHABLE DS_SENDABLE
-#define DS_WATCHABLE 0
 #define DS_COPYABLE (DS_BASICS | DS_EXTRA_1)
 #define DS_MODIFYABLE (DS_SENDABLE | DS_EXTRA_1)
 #define DS_INSPECTABLE (DS_NOT_BUSY | DS_EXTRA_1)
@@ -363,9 +301,9 @@ static void on_watch_delete(G_GNUC_UNUSED const MenuItem *menu_item)
 
 static MenuItem watch_menu_items[] =
 {
-	{ "watch_refresh",    on_watch_refresh,  DS_FRESHABLE,   NULL, NULL },
-	{ "watch_unsorted",   on_watch_unsorted, DS_SORTABLE,    NULL, NULL },
-	{ "watch_add",        on_watch_add,      DS_WATCHABLE,   NULL, NULL },
+	{ "watch_refresh",    on_watch_refresh,  DS_SENDABLE,    NULL, NULL },
+	{ "watch_unsorted",   on_watch_unsorted, 0,              NULL, NULL },
+	{ "watch_add",        on_watch_add,      0,              NULL, NULL },
 	{ "watch_copy",       on_watch_copy,     DS_COPYABLE,    NULL, NULL },
 	{ "watch_modify",     on_watch_modify,   DS_MODIFYABLE,  NULL, NULL },
 	{ "watch_inspect",    on_watch_inspect,  DS_INSPECTABLE, NULL, NULL },
@@ -407,14 +345,11 @@ static void on_watch_mr_mode_button_release(GtkWidget *widget, GdkEventButton *e
 
 void watch_init(void)
 {
-	GtkTreeView *tree = view_connect("watch_view", &model, &selection, watch_cells,
+	GtkTreeView *tree = view_connect("watch_view", &store, &selection, watch_cells,
 		"watch_window", &watch_display);
 	GtkWidget *menu = menu_select("watch_menu", &watch_menu_info, selection);
 
-	store = GTK_LIST_STORE(model);
 	g_signal_connect(tree, "key-press-event", G_CALLBACK(on_watch_key_press), NULL);
-	wd_valid = FALSE;
-
 	g_signal_connect(menu, "show", G_CALLBACK(on_watch_menu_show), NULL);
 	g_signal_connect(get_widget("watch_modify"), "button-release-event",
 		G_CALLBACK(on_watch_modify_button_release), menu);

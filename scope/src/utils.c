@@ -113,74 +113,62 @@ const gchar *utils_skip_spaces(const gchar *text)
 	return text;
 }
 
-gchar *array_append(GArray *array)
+void utils_strchrepl(char *text, char c, char rep)
 {
-	g_array_set_size(array, array->len + 1);
-	return array->data + g_array_get_element_size(array) * (array->len - 1);
+	char *p = text;
+
+	while (*text)
+	{
+		if (*text == c)
+		{
+			if (rep)
+				*text = rep;
+		}
+		else if (!rep)
+			*p++ = *text;
+
+		text++;
+	}
+
+	if (!rep)
+		*p = '\0';
 }
 
-#ifdef G_OS_UNIX
-gchar *array_find(GArray *array, const char *key, G_GNUC_UNUSED gboolean filename)
-#else
-gchar *array_find(GArray *array, const char *key, gboolean filename)
-#endif
+gboolean store_find(ScpTreeStore *store, GtkTreeIter *iter, guint column, const char *key)
 {
-	guint i;
-	gchar *data = array->data;
-	guint size = g_array_get_element_size(array);
-#ifdef G_OS_UNIX
-	int (*const compare)(const char *s1, const char *s2) = strcmp;
-#else
-	int (*compare)(const char *s1, const char *s2) = filename ? utils_str_casecmp : strcmp;
-#endif
+	if (scp_tree_store_get_column_type(store, column) == G_TYPE_STRING)
+		return scp_tree_store_search(store, FALSE, FALSE, iter, NULL, column, key);
 
-	for (i = 0; i < array->len; i++, data += size)
-		if (!compare(*(const char **) data, key))
-			return data;
-
-	return NULL;
+	return scp_tree_store_search(store, FALSE, FALSE, iter, NULL, column, atoi(key));
 }
 
-void array_foreach(GArray *array, GFunc each_func, gpointer gdata)
+void store_foreach(ScpTreeStore *store, GFunc each_func, gpointer gdata)
 {
-	guint i;
-	gchar *data = array->data;
-	guint size = g_array_get_element_size(array);
+	GtkTreeIter iter;
+	gboolean valid = scp_tree_store_get_iter_first(store, &iter);
 
-	for (i = 0; i < array->len; i++, data += size)
-		each_func(data, gdata);
+	while (valid)
+	{
+		each_func(&iter, gdata);
+		valid = scp_tree_store_iter_next(store, &iter);
+	}
 }
 
-guint array_index(GArray *array, gconstpointer element)
+void store_save(ScpTreeStore *store, GKeyFile *config, const gchar *prefix,
+	gboolean (*save_func)(GKeyFile *config, const char *section, GtkTreeIter *iter))
 {
-	return ((const gchar *) element - array->data) / g_array_get_element_size(array);
-}
+	guint i = 0;
+	GtkTreeIter iter;
+	gboolean valid = scp_tree_store_get_iter_first(store, &iter);
 
-void array_remove(GArray *array, gconstpointer element)
-{
-	g_array_remove_index(array, array_index(array, element));
-}
+	while (valid)
+	{
+		char *section = g_strdup_printf("%s_%d", prefix, i);
 
-static void array_free_element(gpointer element, GFreeFunc free_func)
-{
-	free_func(element);
-}
-
-void array_clear(GArray *array, GFreeFunc free_func)
-{
-	array_foreach(array, (GFunc) array_free_element, free_func);
-	g_array_set_size(array, 0);
-}
-
-void array_free(GArray *array, GFreeFunc free_func)
-{
-	array_foreach(array, (GFunc) array_free_element, free_func);
-	g_array_free(array, TRUE);
-}
-
-static void utils_clear_sections(GKeyFile *config, const char *prefix, guint i)
-{
-	gboolean valid;
+		i += save_func(config, section, &iter);
+		valid = scp_tree_store_iter_next(store, &iter);
+		g_free(section);
+	}
 
 	do
 	{
@@ -190,109 +178,26 @@ static void utils_clear_sections(GKeyFile *config, const char *prefix, guint i)
 	} while (valid);
 }
 
-void array_save(GArray *array, GKeyFile *config, const gchar *prefix, ASaveFunc save_func)
-{
-	guint i, n = 0;
-	gchar *data = array->data;
-
-	for (i = 0; i < array->len; i++, data += g_array_get_element_size(array))
-	{
-		char *section = g_strdup_printf("%s_%d", prefix, n);
-		n += save_func(config, section, data);
-		g_free(section);
-	}
-
-	utils_clear_sections(config, prefix, n);
-}
-
-gboolean model_find(GtkTreeModel *model, GtkTreeIter *iter, guint column, const char *key)
-{
-	gboolean string = gtk_tree_model_get_column_type(model, column) == G_TYPE_STRING;
-	gboolean valid = gtk_tree_model_get_iter_first(model, iter);
-	gint i = atoi(key);
-
-	while (valid)
-	{
-		union
-		{
-			const gchar *s;
-			gint i;
-		} data;
-
-		gtk_tree_model_get(model, iter, column, &data, -1);
-
-		if (string ? g_strcmp0(data.s, key) == 0 : data.i == i)
-			return TRUE;
-
-		valid = gtk_tree_model_iter_next(model, iter);
-	}
-
-	return FALSE;
-}
-
-void model_foreach(GtkTreeModel *model, GFunc each_func, gpointer gdata)
-{
-	GtkTreeIter iter;
-	gboolean valid = gtk_tree_model_get_iter_first(model, &iter);
-
-	while (valid)
-	{
-		each_func(&iter, gdata);
-		valid = gtk_tree_model_iter_next(model, &iter);
-	}
-}
-
-void model_save(GtkTreeModel *model, GKeyFile *config, const gchar *prefix,
-	gboolean (*save_func)(GKeyFile *config, const char *section, GtkTreeIter *iter))
-{
-	guint i = 0;
-	GtkTreeIter iter;
-	gboolean valid = gtk_tree_model_get_iter_first(model, &iter);
-
-	while (valid)
-	{
-		char *section = g_strdup_printf("%s_%d", prefix, i);
-
-		i += save_func(config, section, &iter);
-		valid = gtk_tree_model_iter_next(model, &iter);
-		g_free(section);
-	}
-
-	utils_clear_sections(config, prefix, i);
-}
-
-gint model_string_compare(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gint column)
+gint store_gint_compare(ScpTreeStore *store, GtkTreeIter *a, GtkTreeIter *b, gpointer gdata)
 {
 	const gchar *s1, *s2;
 
-	gtk_tree_model_get(model, a, column, &s1, -1);
-	gtk_tree_model_get(model, b, column, &s2, -1);
-	return g_strcmp0(s1, s2);
+	scp_tree_store_get(store, a, GPOINTER_TO_INT(gdata), &s1, -1);
+	scp_tree_store_get(store, b, GPOINTER_TO_INT(gdata), &s2, -1);
+	return utils_atoi0(s1) - utils_atoi0(s2);
 }
 
-static int model_atoint(GtkTreeModel *model, GtkTreeIter *iter, gpointer gdata)
-{
-	const gchar *s;
-	gtk_tree_model_get(model, iter, GPOINTER_TO_INT(gdata), &s, -1);
-	return utils_atoi0(s);
-}
-
-gint model_gint_compare(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer gdata)
-{
-	return model_atoint(model, a, gdata) - model_atoint(model, b, gdata);
-}
-
-gint model_seek_compare(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b,
+gint store_seek_compare(ScpTreeStore *store, GtkTreeIter *a, GtkTreeIter *b,
 	G_GNUC_UNUSED gpointer gdata)
 {
-	gint result = model_string_compare(model, a, b, COLUMN_FILE);
+	gint result = scp_tree_store_compare_func(store, a, b, GINT_TO_POINTER(COLUMN_FILE));
 
 	if (!result)
 	{
 		gint i1, i2;
 
-		gtk_tree_model_get(model, a, COLUMN_LINE, &i1, -1);
-		gtk_tree_model_get(model, b, COLUMN_LINE, &i2, -1);
+		scp_tree_store_get(store, a, COLUMN_LINE, &i1, -1);
+		scp_tree_store_get(store, b, COLUMN_LINE, &i2, -1);
 		result = i1 - i2;
 	}
 
@@ -534,7 +439,7 @@ gboolean utils_key_file_write_to_file(GKeyFile *config, const char *configfile)
 
 gchar *utils_key_file_get_string(GKeyFile *config, const char *section, const char *key)
 {
-	gchar *string = g_key_file_get_string(config, section, key, NULL);
+	gchar *string = utils_get_setting_string(config, section, key, NULL);
 
 	if (!validate_column(string, TRUE))
 	{
@@ -663,7 +568,7 @@ static void on_insert_text(GtkEditable *editable, gchar *new_text, gint new_text
 	G_GNUC_UNUSED gint *position, gpointer gdata)
 {
 	gboolean valid = TRUE;
-	
+
 	if (new_text_length == -1)
 		new_text_length = (gint) strlen(new_text);
 
@@ -778,6 +683,18 @@ static gboolean on_widget_key_press(G_GNUC_UNUSED GtkWidget *widget, GdkEventKey
 void utils_enter_to_clicked(GtkWidget *widget, GtkWidget *button)
 {
 	g_signal_connect(widget, "key-press-event", G_CALLBACK(on_widget_key_press), button);
+}
+
+void utils_tree_set_cursor(GtkTreeSelection *selection, GtkTreeIter *iter, gdouble alignment)
+{
+	GtkTreeView *tree = gtk_tree_selection_get_tree_view(selection);
+	GtkTreePath *path = gtk_tree_model_get_path(gtk_tree_view_get_model(tree), iter);
+
+	if (alignment >= 0)
+		gtk_tree_view_scroll_to_cell(tree, path, NULL, TRUE, alignment, 0);
+
+	gtk_tree_view_set_cursor(tree, path, NULL, FALSE);
+	gtk_tree_path_free(path);
 }
 
 void utils_finalize(void)

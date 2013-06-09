@@ -16,7 +16,7 @@
 
 <center><h2>Scope</h2></center>
 
-<center><h3>A simple GDB front-end</h3></center>
+<center><h3>A relatively simple GDB front-end</h3></center>
 
 <p align="right">&quot;We are like dwarfs sitting on the shoulders of giants.&quot;<br>
 -- Bernard of Chartres</p>
@@ -47,6 +47,7 @@
 		<li><a href="#stack">Stack</a></li>
 		<li><a href="#local">Locals</a></li>
 		<li><a href="#watch">Watches</a></li>
+		<li><a href="#memory">Memory</a></li>
 		<li><a href="#local_watch">Locals/Watches</a></li>
 		<li><a href="#console">Debug Console</a></li>
 	</ul></li>
@@ -279,6 +280,11 @@ you want to kill the program only, switch to <em>Threads</em> and use <em>Termin
 
 <p>Commands starting with 0&lt;digit&gt; are used internally by Scope and will be blocked.</p>
 
+<p>Scope tries to keep track of the current gdb thread, and to emit a -thread-select command
+on <em>Send</em>/<em>Busy</em> if the gdb thread does not match the one (if any) selected in
+<em>Threads</em>. Tracking the current gdb frame asynchronously is impossible, so you must use
+a gdb frame selection command or --frame for the non-zero frames.</p>
+
 <p>Writing a full combo box for multi-line text is outside the scope of this project.</p>
 
 <p><b><a name="reset markers">Reset Markers</a></b></p>
@@ -319,8 +325,12 @@ combined with <em>Auto Hide</em> on multi-thread-group programs.</td></tr>
 
 <p><b><a name="threads">Threads</a></b></p>
 
-<p><em>Refresh</em> - will not append or remove threads, only update the currently listed
+<p>The thread list is updated by asynchronous gdb messages. Normally you should not need to
+refresh it, and <em>Refresh</em> won't append or remove threads, only update the current
 ones.</p>
+
+<p><em>Synchronize</em> - refresh and select the current gdb thread. Shift-click:
+-thread-select.</p>
 
 <p><em>Interrupt</em> - *nix: SIGINT, win~1: DebugBreakProcess.</p>
 
@@ -329,7 +339,7 @@ ones.</p>
 <p>Both <em>Interrupt</em> and <em>Terminate</em> require an extra <em>Step</em> deliver a
 signal/*process to a stopped thread, and an extra <em>Step</em> to terminate a process.</p>
 
-<div><em>Re-select on</em>:</div>
+<div><em>Select on</em>:</div>
 <table border="0">
 <tr><td class="tab"><em>Running</em></td><td class="tab">Select a stopped thread (if any) when
 the current thread becomes running. Useful when starting/stopping lots of threads, but may be
@@ -339,6 +349,8 @@ stopped thread exists, it'll be selected on each step.</td></tr>
 there is no stopped thread already selected).</td></tr>
 <tr><td class="tab"><em>Exited</em></td><td class="tab">Select a stopped thread (if any) when
 the current thread is exited.</td></tr>
+<tr><td class="tab"><em>Follow</em></td><td class="tab">Follow gdb =thread-selected. It'll be
+better to clear the other options.</td></tr>
 </table>
 
 <p><b><a name="break">Breakpoints</a></b></p>
@@ -361,7 +373,7 @@ ignore for passcount), not the tracepoint-specific commands.</p>
 <p><em>Apply on run</em> is off by default for watchpoints, because they are often related to
 a local expression.</p>
 
-<p>Shift-Clicking <em>Apply</em> applies the breakpoint for the currently selected thread
+<p>Shift-clicking <em>Apply</em> applies the breakpoint for the currently selected thread
 only.</p>
 
 <p>GDB may report an error for invalid <em>Condition</em> and/or <em>Script</em>, but still
@@ -388,6 +400,8 @@ marker for enabled breakpoint will be used for that line.</p>
 <p>The function arguments are subject to 8-bit text conversion. Their individual modes may be
 set via <em>Locals</em>.</p>
 
+<p><em>Synchronize</em> - select the current gdb frame. Shift-click: -stack-select-frame.</p>
+
 <p><em>Show @entry</em> - display any @entry arguments reported by gdb for the selected frame
 function. Depends on GDB &quot;print entry-values&quot;. Applies to <em>Locals</em> too.</p>
 
@@ -412,6 +426,19 @@ Any char[] arrays will still be displayed as arrays.</p>
 
 <p><em>Show .names</em> - display member names. Shift+Click resets it to the value specified
 in <em>Setup Program</em>.</p>
+
+<p><b><a name="memory">Memory</a></b></p>
+
+<p><em>Group by</em> is for visual convinience only and ignores endian.</p>
+
+<p>Groups are not wrapped, so with <em>Group by</em> &gt; 1, less than
+<em>memory_line_bytes</em> may be displayed.</p>
+
+<p>A maximum of 16K may be displayed (128 lines * 128 bytes); <em>gdb_buffer_length</em> also
+limits the size.</p>
+
+<p><em>Memory</em> empty but <em>Clear</em> available means that the subpage can not be
+updated ATM; if you explicitly <em>Clear</em> it, no further updates will take place.</p>
 
 <p><b><a name="console">Debug Console</a></b></p>
 
@@ -522,7 +549,11 @@ tooltips.</p>
 <p><em>tooltips_send_delay</em> - increase this setting to reduce the CPU time and GDB traffic
 used by the tooltips, or decrease it if they appear slower than your gtk+ setting.</p>
 
-<p><em>pref_tooltips_length</em> - maximum length of a tooltip message, 0 = unlimited.</p>
+<p><em>pref_tooltips_length</em> - maximum length of a tooltip message, 0 = unlimited.
+Default = 2048.</p>
+
+<p><em>memory_line_bytes</em> - maximum bytes per <em>Memory</em> line.</p>
+
 
 <p>[terminal] (*nix only)</p>
 
@@ -531,7 +562,7 @@ used by the tooltips, or decrease it if they appear slower than your gtk+ settin
 <p><em>save_pos</em> - auto save window position and widget size</p>
 
 <p><em>padding</em> - whether <em>width</em> and <em>height</em> include the extra VTE widget
-padding. If <em>save_pos</em> is active, it will save them with the padding.</p>
+padding. If <em>save_pos</em> is active, they will be saved with the padding.</p>
 
 <p>[disabled_break], [enabled_break], [execution_line]</p>
 
@@ -552,8 +583,6 @@ them has Scope enabled. Otherwise, the list of programs and their settings may b
 
 <p>A disabled check button or check menu item means that the respective functionality is
 unavailable; it doesn't matter if the interface element is checked or not.</p>
-
-<p>All subpages will be updated faster if you keep them unsorted.</p>
 
 <p><b><a name="editing_values">Editing values</a></b></p>
 
@@ -635,6 +664,17 @@ the false impression that you can assign selectively, while in fact omitting a &
 value, &quot; <em>moves</em> all values left by 1, and changing a name or index has
 <em>no</em> effect.</p>
 
+<p>Q. A "signal `project-before-save' is invalid" warning is displayed on Geany startup, and
+an "assertion `handler_id > 0' failed" message on quit.</p>
+
+<p>A. Your Geany does not support this signal. Either apply the patch from Geany sourceforge
+patch tracker <a href="http://sourceforge.net/tracker/?func=detail&amp;aid=3594050&amp;
+group_id=153444&amp;atid=787793">ID 3594050</a> and recompile it, or make sure to
+<em>Terminate</em> the debugged program before quitting Geany or switching to another project.
+Otherwise, your source files will be marked as read-only when the current project is reopened.
+Of course, you can awlays unlock them manually (via <em>Document --&gt; Read Only</em>),
+so it's nothing serious.</p>
+
 <h3><a name="bugs">Bugs</a></h3>
 
 <p>For some reason, -exec-interrupt under Linux (*nix?) signals gdb and Geany, but not the
@@ -673,7 +713,7 @@ later version.</p>
 
 <b><a name="copyright">Copyright</a></b>
 
-<p>Scope 0.78, Copyright (C) 2012 Dimitar Toshkov Zhekov</p>
+<p>Scope 0.88, Copyright (C) 2013 Dimitar Toshkov Zhekov</p>
 
 <p>The menu and toolbar icons are from <a href="http://netbeans.org">Netbeans</a>, except for
 BreakPoint.</p>
