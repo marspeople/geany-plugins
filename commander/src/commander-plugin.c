@@ -352,13 +352,12 @@ store_populate_menu_items (GtkListStore  *store,
         SETPTR (label, g_strconcat (label, "\n<small><i>", tmp, "</i></small>", NULL));
         g_free (tmp);
 
-	if (!strstr(path, "Recent"))
-		gtk_list_store_insert_with_values (store, NULL, -1,
-						   COL_LABEL, label,
-						   COL_PATH, path,
-						   COL_TYPE, COL_TYPE_MENU_ITEM,
-						   COL_WIDGET, node->data,
-						   -1);
+        gtk_list_store_insert_with_values (store, NULL, -1,
+                   COL_LABEL, label,
+                   COL_PATH, path,
+                   COL_TYPE, COL_TYPE_MENU_ITEM,
+                   COL_WIDGET, node->data,
+                   -1);
 
         g_free (label);
       }
