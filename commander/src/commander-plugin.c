@@ -340,7 +340,11 @@ store_populate_menu_items (GtkListStore  *store,
       } else {
         gchar *tmp;
         gchar *tooltip;
+<<<<<<< HEAD
         gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>", item_label);
+=======
+        gchar *label = g_markup_printf_escaped ("<b>%s</b>", item_label);
+>>>>>>> bbfb282e8e222e536f3f486ecf71c4a4daddf4cf
 
         tooltip = gtk_widget_get_tooltip_markup (node->data);
         if (tooltip) {
@@ -352,12 +356,22 @@ store_populate_menu_items (GtkListStore  *store,
         SETPTR (label, g_strconcat (label, "\n<small><i>", tmp, "</i></small>", NULL));
         g_free (tmp);
 
+<<<<<<< HEAD
         gtk_list_store_insert_with_values (store, NULL, -1,
                    COL_LABEL, label,
                    COL_PATH, path,
                    COL_TYPE, COL_TYPE_MENU_ITEM,
                    COL_WIDGET, node->data,
                    -1);
+=======
+	if (!strstr(path, "Recent"))
+		gtk_list_store_insert_with_values (store, NULL, -1,
+						   COL_LABEL, label,
+						   COL_PATH, path,
+						   COL_TYPE, COL_TYPE_MENU_ITEM,
+						   COL_WIDGET, node->data,
+						   -1);
+>>>>>>> bbfb282e8e222e536f3f486ecf71c4a4daddf4cf
 
         g_free (label);
       }
@@ -405,7 +419,11 @@ fill_store (GtkListStore *store)
   /* open files */
   foreach_document (i) {
     gchar *basename = g_path_get_basename (DOC_FILENAME (documents[i]));
+<<<<<<< HEAD
     gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>\n"
+=======
+    gchar *label = g_markup_printf_escaped ("<b>%s</b>\n"
+>>>>>>> bbfb282e8e222e536f3f486ecf71c4a4daddf4cf
                                             "<small><i>%s</i></small>",
                                             basename,
                                             DOC_FILENAME (documents[i]));
