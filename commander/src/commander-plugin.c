@@ -340,7 +340,7 @@ store_populate_menu_items (GtkListStore  *store,
       } else {
         gchar *tmp;
         gchar *tooltip;
-        gchar *label = g_markup_printf_escaped ("<b>%s</b>", item_label);
+        gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>", item_label);
 
         tooltip = gtk_widget_get_tooltip_markup (node->data);
         if (tooltip) {
@@ -405,7 +405,7 @@ fill_store (GtkListStore *store)
   /* open files */
   foreach_document (i) {
     gchar *basename = g_path_get_basename (DOC_FILENAME (documents[i]));
-    gchar *label = g_markup_printf_escaped ("<b>%s</b>\n"
+    gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>\n"
                                             "<small><i>%s</i></small>",
                                             basename,
                                             DOC_FILENAME (documents[i]));
@@ -656,8 +656,8 @@ create_panel (void)
 
   plugin_data.panel = g_object_new (GTK_TYPE_WINDOW,
                                     "decorated", FALSE,
-                                    "default-width", 500,
-                                    "default-height", 200,
+                                    "default-width", 600,
+                                    "default-height", 300,
                                     "transient-for", geany_data->main_widgets->window,
                                     "window-position", GTK_WIN_POS_CENTER_ON_PARENT,
                                     "type-hint", GDK_WINDOW_TYPE_HINT_DIALOG,
