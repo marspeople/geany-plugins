@@ -173,9 +173,9 @@ key_score (const gchar *key_,
   gchar  *text  = g_utf8_casefold (text_, -1);
   gchar  *key   = g_utf8_casefold (key_, -1);
   gint    score;
-  
+
   score = get_score (key, text) + get_score (key, path_basename (text)) / 2;
-  
+
   g_free (text);
   g_free (key);
 
@@ -340,11 +340,7 @@ store_populate_menu_items (GtkListStore  *store,
       } else {
         gchar *tmp;
         gchar *tooltip;
-<<<<<<< HEAD
         gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>", item_label);
-=======
-        gchar *label = g_markup_printf_escaped ("<b>%s</b>", item_label);
->>>>>>> bbfb282e8e222e536f3f486ecf71c4a4daddf4cf
 
         tooltip = gtk_widget_get_tooltip_markup (node->data);
         if (tooltip) {
@@ -356,22 +352,12 @@ store_populate_menu_items (GtkListStore  *store,
         SETPTR (label, g_strconcat (label, "\n<small><i>", tmp, "</i></small>", NULL));
         g_free (tmp);
 
-<<<<<<< HEAD
         gtk_list_store_insert_with_values (store, NULL, -1,
                    COL_LABEL, label,
                    COL_PATH, path,
                    COL_TYPE, COL_TYPE_MENU_ITEM,
                    COL_WIDGET, node->data,
                    -1);
-=======
-	if (!strstr(path, "Recent"))
-		gtk_list_store_insert_with_values (store, NULL, -1,
-						   COL_LABEL, label,
-						   COL_PATH, path,
-						   COL_TYPE, COL_TYPE_MENU_ITEM,
-						   COL_WIDGET, node->data,
-						   -1);
->>>>>>> bbfb282e8e222e536f3f486ecf71c4a4daddf4cf
 
         g_free (label);
       }
@@ -419,14 +405,8 @@ fill_store (GtkListStore *store)
   /* open files */
   foreach_document (i) {
     gchar *basename = g_path_get_basename (DOC_FILENAME (documents[i]));
-<<<<<<< HEAD
-    gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>\n"
-=======
-    gchar *label = g_markup_printf_escaped ("<b>%s</b>\n"
->>>>>>> bbfb282e8e222e536f3f486ecf71c4a4daddf4cf
-                                            "<small><i>%s</i></small>",
-                                            basename,
-                                            DOC_FILENAME (documents[i]));
+    gchar *label = g_markup_printf_escaped ("<small><b>%s</b></small>\n",
+                                            basename);
 
     gtk_list_store_insert_with_values (store, NULL, -1,
                                        COL_LABEL, label,
@@ -640,24 +620,24 @@ score_cell_data (GtkTreeViewColumn *column,
   gint          type;
   gint          width, old_width;
   const gchar  *key = get_key (&type);
-  
+
   gtk_tree_model_get (model, iter, COL_PATH, &path, COL_TYPE, &pathtype, -1);
-  
+
   score = key_score (key, path);
   if (! (pathtype & type)) {
     score -= 0xf000;
   }
-  
+
   text = g_strdup_printf ("%d", score);
   g_object_set (cell, "text", text, NULL);
-  
+
   /* automatic column sizing is buggy, so just make an acceptable wild guess */
   width = 8 + strlen (text) * 10;
   old_width = gtk_tree_view_column_get_fixed_width (col);
   if (old_width < width) {
     gtk_tree_view_column_set_fixed_width (col, width);
   }
-  
+
   g_free (text);
   g_free (path);
 }
