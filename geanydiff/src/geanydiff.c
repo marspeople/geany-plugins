@@ -15,7 +15,7 @@ PLUGIN_SET_TRANSLATABLE_INFO(
 	GETTEXT_PACKAGE,
 	_("Diff"),
 	_("Invoke a diff tool between two files"),
-	"1.1",
+	"1.2",
 	"Marcelo Póvoa <marspeoplester@gmail.com>")
 
 static GtkToolItem *tool_item       = NULL;
@@ -31,6 +31,13 @@ static gchar *config_custom_cmd;
 static gboolean config_stdout_en;
 
 static gchar *config_file;
+
+enum {
+  KB_DIFF_LEFT,
+  KB_DIFF_RIGHT,
+  KB_DIFF_SELF,
+  KB_COUNT
+};
 
 typedef struct diff_cmd {
 	const gchar * cmd;    /* Command line with replaceable wildcards */
@@ -78,8 +85,7 @@ static void get_current_cmd(diff_cmd *dest)
 		dest->cmd  = config_custom_cmd;
 		dest->sync = config_stdout_en;
 	}
-	else
-		*dest = stock_commands[config_cmd_index];
+	else *dest = stock_commands[config_cmd_index];
 }
 
 static gchar *export_doc_to_tmpfile(GeanyDocument *doc, GError **error)
@@ -87,50 +93,62 @@ static gchar *export_doc_to_tmpfile(GeanyDocument *doc, GError **error)
 	/* FIXME: File encoding doesn't seem to be correctly preserved */
 	ScintillaObject *sci = doc->editor->sci;
 	gchar *doc_text = sci_get_contents(sci, -1);
-	gchar *filename, *basename;
+	gchar *basename, *template, *name_used;
 
-	basename = g_path_get_basename(doc->file_name);
-	filename = g_build_filename(g_get_tmp_dir(), basename, NULL);
+	basename = g_path_get_basename(DOC_FILENAME(doc));
+	template = g_strconcat(basename, "-XXXXXX", NULL);
+	close(g_file_open_tmp(template, &name_used, error));
 
-	if (!g_file_set_contents(filename, doc_text, -1, error))
+	if (!g_file_set_contents(name_used, doc_text, -1, error))
 		return NULL;
 
 	g_free(doc_text);
 	g_free(basename);
+	g_free(template);
 
-	return filename;
+	return name_used;
 }
 
-static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
+static gchar *get_latest_file_snapshot(GeanyDocument *doc, GError *error)
+{
+	/* If document is not saved, get unsaved version of doc in a tmp file */
+	if (doc->changed || !doc->real_path) {
+		return export_doc_to_tmpfile(doc, &error);
+	}
+	return doc->file_name;
+}
+
+static void process_diff_request(GeanyDocument *tgt_doc)
 {
 	GeanyFiletype *ft = filetypes_lookup_by_name("Diff");
-	GeanyDocument *cur_doc;
+	GeanyDocument *cur_doc = document_get_current();
 	diff_cmd cur_cmd;
 	GError *error = NULL;
 	GString *command;
 	gchar *std_out;
 	gchar *file_cur;
+	gchar *file_tgt;
 
-	if (doc->is_valid) {
-		cur_doc = document_get_current();
+	if (DOC_VALID(cur_doc) && DOC_VALID(tgt_doc)) {
 		get_current_cmd(&cur_cmd);
 
-		/* If document is changed, get unsaved version of doc in a tmp file */
-		if (cur_doc->changed) {
-			file_cur = export_doc_to_tmpfile(cur_doc, &error);
-			if (!file_cur) {
-				g_warning("geanydiff: error: %s", error->message);
-				ui_set_statusbar(FALSE, _("geanydiff: error: %s"), error->message);
-				g_error_free(error);
-				return;
-			}
+		file_cur = get_latest_file_snapshot(cur_doc, error);
+		if (cur_doc == tgt_doc) {
+			if (!cur_doc->real_path) return;
+			file_tgt = tgt_doc->file_name;
+		} else {
+			file_tgt = get_latest_file_snapshot(tgt_doc, error);
 		}
-		else
-			file_cur = cur_doc->file_name;
+
+		if (error) {
+			g_warning("geanydiff: error: %s", error->message);
+			ui_set_statusbar(FALSE, _("geanydiff: error: %s"), error->message);
+			g_error_free(error);
+		}
 
 		command = g_string_new(cur_cmd.cmd);
 
-		utils_string_replace_all(command, "%ft", doc->file_name);
+		utils_string_replace_all(command, "%ft", file_tgt);
 		utils_string_replace_all(command, "%fc", file_cur);
 
 		if (cur_cmd.sync)
@@ -150,11 +168,16 @@ static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
 			g_free(std_out);
 		}
 
-		if (cur_doc->changed)
-			g_free(file_cur);
+		if (g_strcmp0(file_cur, cur_doc->file_name)) g_free(file_cur);
+		if (g_strcmp0(file_tgt, tgt_doc->file_name)) g_free(file_tgt);
 
 		g_string_free(command, TRUE);
 	}
+}
+
+static void on_doc_menu_item_clicked(gpointer item, GeanyDocument *doc)
+{
+	process_diff_request(doc);
 }
 
 static void on_doc_menu_show(GtkMenu *menu)
@@ -212,8 +235,41 @@ static void on_click_tool_button(void)
 	plugin_show_configure(geany_plugin);
 }
 
+static void on_kb_diff_left(guint key_id)
+{
+	GeanyDocument* cur_doc = document_get_current();
+	if (cur_doc) {
+		gint notebook_page = document_get_notebook_page(cur_doc);
+		process_diff_request(document_index(notebook_page - 1));
+	}
+}
+
+static void on_kb_diff_right(guint key_id)
+{
+  GeanyDocument* cur_doc = document_get_current();
+  if (cur_doc) {
+		gint notebook_page = document_get_notebook_page(cur_doc);
+		process_diff_request(document_index(notebook_page + 1));
+	}
+}
+
+static void on_kb_diff_self(guint key_id)
+{
+	process_diff_request(document_get_current());
+}
+
 void plugin_init(GeanyData *data)
 {
+	GeanyKeyGroup *group;
+
+  group = plugin_set_key_group(geany_plugin, "geanydiff", KB_COUNT, NULL);
+  keybindings_set_item(group, KB_DIFF_LEFT, on_kb_diff_left,
+                        0, 0, "diff_left", _("Diff to Left Tab"), NULL);
+  keybindings_set_item(group, KB_DIFF_RIGHT, on_kb_diff_right,
+                        0, 0, "diff_right", _("Diff to Right Tab"), NULL);
+  keybindings_set_item(group, KB_DIFF_SELF, on_kb_diff_self,
+                        0, 0, "diff_self", _("Diff to Saved File"), NULL);
+
 	tool_item = gtk_menu_tool_button_new(NULL, NULL);
 	gtk_tool_button_set_stock_id(GTK_TOOL_BUTTON(tool_item), GTK_STOCK_DND_MULTIPLE);
 	plugin_add_toolbar_item(geany_plugin, tool_item);
@@ -282,11 +338,11 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 	gtkw = gtk_entry_new();
 	if (config_custom_cmd != NULL)
 		gtk_entry_set_text(GTK_ENTRY(gtkw), config_custom_cmd);
-	
+
 	gtk_widget_set_tooltip_text(gtkw,
 		_("If non-empty, the custom diff command line to execute.\n"
 		  "%fc will be replaced with the full path of current document\n"
-		  "%ft will be replaced with the full path of target document"));
+		  "%ft will be replaced with the full path of target (chosen) document"));
 	gtk_box_pack_start(GTK_BOX(vbox), gtkw, FALSE, FALSE, 0);
 	pref_custom_cmd = gtkw;
 
@@ -303,8 +359,8 @@ GtkWidget *plugin_configure(GtkDialog *dialog)
 
 	gtkw = gtk_label_new(
 		_("\nNote:\n"
-		  "\tDiff will export current file to a temporary if unsaved,\n"
-		  "\twhile chosen file (target) is always used as saved.\n"));
+		  "\tDiff will compare temporary snapshots of unsaved files, except\n"
+		  "\twhen requesting diff to itself (will compare to the saved copy).\n"));
 	gtk_misc_set_alignment(GTK_MISC(gtkw), 0, 0.5);
 	gtk_box_pack_start(GTK_BOX(vbox), gtkw, FALSE, FALSE, 0);
 
