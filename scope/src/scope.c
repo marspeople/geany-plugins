@@ -27,12 +27,11 @@
 
 GeanyPlugin *geany_plugin;
 GeanyData *geany_data;
-GeanyFunctions *geany_functions;
 
-PLUGIN_VERSION_CHECK(215)
+PLUGIN_VERSION_CHECK(224)
 
 PLUGIN_SET_TRANSLATABLE_INFO(LOCALEDIR, GETTEXT_PACKAGE, _("Scope Debugger"),
-	_("Relatively simple GDB front-end."), "0.93.2",
+	_("Relatively simple GDB front-end."), "0.94",
 	"Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>")
 
 /* Keybinding(s) */
@@ -312,8 +311,6 @@ static void on_document_open(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 		threads_mark(doc);
 }
 
-static guint saved_id = 0;
-
 static gboolean settings_saved(gpointer gdata)
 {
 	guint i;
@@ -330,7 +327,6 @@ static gboolean settings_saved(gpointer gdata)
 		conterm_apply_config();
 	}
 
-	saved_id = 0;
 	return FALSE;
 }
 
@@ -338,7 +334,7 @@ static void schedule_settings_saved(gboolean conterm)
 {
 	guint i;
 
-	saved_id = plugin_idle_add(geany_plugin, settings_saved, GINT_TO_POINTER(conterm));
+	plugin_idle_add(geany_plugin, settings_saved, GINT_TO_POINTER(conterm));
 
 	foreach_document(i)
 	{

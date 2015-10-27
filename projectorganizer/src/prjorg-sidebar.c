@@ -1220,11 +1220,10 @@ void prjorg_sidebar_update(gboolean reload)
 {
 	if (reload)
 	{
+		load_project();
 		/* we get color information only after the sidebar is realized -
-		 * postpone reload if this is not the case yet */
-		if (gtk_widget_get_realized(s_toolbar))
-			load_project();
-		else
+		 * perform reload later if this is not the case yet */
+		if (!gtk_widget_get_realized(s_toolbar))
 			s_pending_reload = TRUE;
 	}
 	if (s_follow_editor)
@@ -1373,7 +1372,7 @@ void prjorg_sidebar_init(void)
 
 	image = gtk_image_new_from_stock(GTK_STOCK_FIND, GTK_ICON_SIZE_MENU);
 	gtk_widget_show(image);
-	item = gtk_image_menu_item_new_with_mnemonic(_("Find in Files"));
+	item = gtk_image_menu_item_new_with_mnemonic(_("Find in Files..."));
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	gtk_widget_show(item);
 	gtk_container_add(GTK_CONTAINER(s_popup_menu.widget), item);
@@ -1382,7 +1381,7 @@ void prjorg_sidebar_init(void)
 
 	image = gtk_image_new_from_stock(GTK_STOCK_FIND, GTK_ICON_SIZE_MENU);
 	gtk_widget_show(image);
-	item = gtk_image_menu_item_new_with_mnemonic(_("Find File"));
+	item = gtk_image_menu_item_new_with_mnemonic(_("Find File..."));
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	gtk_widget_show(item);
 	gtk_container_add(GTK_CONTAINER(s_popup_menu.widget), item);
@@ -1391,7 +1390,7 @@ void prjorg_sidebar_init(void)
 
 	image = gtk_image_new_from_stock(GTK_STOCK_FIND, GTK_ICON_SIZE_MENU);
 	gtk_widget_show(image);
-	item = gtk_image_menu_item_new_with_mnemonic(_("Find Tag"));
+	item = gtk_image_menu_item_new_with_mnemonic(_("Find Tag..."));
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 	gtk_widget_show(item);
 	gtk_container_add(GTK_CONTAINER(s_popup_menu.widget), item);

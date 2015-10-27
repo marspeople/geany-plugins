@@ -10,6 +10,7 @@ addons/src/ao_xmltagging.c
 addons/src/ao_openuri.c
 addons/src/ao_wrapwords.c
 addons/src/ao_doclist.c
+addons/src/ao_copyfilepath.c
 addons/src/addons.c
 
 # Autoclose
@@ -112,8 +113,8 @@ geanydoc/tests/unittests.c
 geanydoc/src/config.c
 geanydoc/src/geanydoc.c
 
-# geanydiff 
-geanydiff/src/geanydiff.c 
+# geanydiff
+geanydiff/src/geanydiff.c
 
 # GeanyExtraSel
 geanyextrasel/src/extrasel.c
@@ -226,6 +227,21 @@ git-changebar/src/gcb-plugin.c
 # Markdown
 markdown/src/conf.c
 markdown/src/plugin.c
+
+# Multiterm
+multiterm/src/config.vala
+multiterm/src/context-menu.vala
+multiterm/src/notebook.vala
+multiterm/src/plugin.vala
+multiterm/src/shell-config.vala
+multiterm/src/tab-label.vala
+multiterm/src/terminal.vala
+multiterm/src/config.c
+multiterm/src/context-menu.c
+multiterm/src/notebook.c
+multiterm/src/plugin.c
+multiterm/src/tab-label.c
+multiterm/src/terminal.c
 
 # Overview
 overview/overview/overviewcolor.c
