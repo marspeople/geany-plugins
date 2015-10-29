@@ -240,7 +240,7 @@ static void on_kb_diff_left(guint key_id)
 	GeanyDocument* cur_doc = document_get_current();
 	if (cur_doc) {
 		gint notebook_page = document_get_notebook_page(cur_doc);
-		process_diff_request(document_index(notebook_page - 1));
+		process_diff_request(document_get_from_page(notebook_page - 1));
 	}
 }
 
@@ -249,7 +249,7 @@ static void on_kb_diff_right(guint key_id)
   GeanyDocument* cur_doc = document_get_current();
   if (cur_doc) {
 		gint notebook_page = document_get_notebook_page(cur_doc);
-		process_diff_request(document_index(notebook_page + 1));
+		process_diff_request(document_get_from_page(notebook_page + 1));
 	}
 }
 
